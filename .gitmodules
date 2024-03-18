@@ -1,0 +1,3 @@
+[submodule "PatchOperationGenerator"]
+	path = PatchOperationGenerator
+	url = git@github.com:masakitenchi/PatchOperationGenerator.git

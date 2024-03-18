@@ -1,3 +1,13 @@
 #!/bin/bash
 pip install pyinstaller
-pyinstaller __main__.py --windowed -n Pyscripts -y
+
+args="-n Pyscripts -y"
+while [[ "$#" -gt 0 ]]; do
+	case $1 in
+		-w|--windowed) 
+			args="--windowed ${args}" 
+			shift 
+			;;
+	esac
+done
+pyinstaller __main__.py $args 

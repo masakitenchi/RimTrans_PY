@@ -2,3 +2,9 @@
 build
 dist
 *.spec
+
+# Test files
+Defs.xml
+
+# Python cache files
+__pycache__

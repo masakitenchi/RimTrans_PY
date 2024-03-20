@@ -1,9 +1,17 @@
 import lxml.etree as ET
 import os
-import random
 from file import BFS
+from tkinter import filedialog
+import platform
+from TranslationExtractor import ModLoader as ml
+import typing
+from dataclasses import dataclass
 
+RimWorldId = 294100
+WorkshopFolder: str = ""
+RimWorldFolder: str = ""
 
+modLoadOrder: list[str] = []
 
 DefDictByType: dict[str, dict[str, ET._Element]] = {}
 """
@@ -15,56 +23,49 @@ key是Name属性，value是拥有该Name属性的节点的列表
 """
 expansion_dir = ['Core', 'Royalty', 'Ideology', 'Biotech']
 
-def load_vanilla(path: str) -> dict[str, dict[str, ET._Element]]:
-	"""
-	加载原版xml文件
-	
-	Args:
-		path (str): 原版Data文件夹的路径
-	Returns:
-		dict[str, dict[str, ET._Element]]: 完整的字典，按照DefType.defName的方式存储
-	"""
-	global DefDictByType, NameAttrDict
-	for dir in (f for f in os.listdir(path) if f in expansion_dir):
-		Defs = os.path.join(path, dir, 'Defs')
-		print(Defs)
-		files = BFS(Defs, ['xml'])
-		print(files)
-		for file in files:
-			try:
-				tree: ET._ElementTree = ET.parse(file)
-				root: ET._Element = tree.getroot()
-				if root.tag != 'Defs': raise ValueError(f'File has no root tag named "Defs"')
-				for node in list(root):
-					node: ET._Element
-					defName = ""
-					if type(node) is ET._Comment: continue
-					if node.tag not in DefDictByType.keys():
-						DefDictByType[node.tag] = {}
-					if node.get('Abstract', '').lower() == 'true':
-						continue
-					if node.find('defName') is not None:	defName = node.find('defName').text
-					else: raise ValueError(f'Node in file named {node.tag} has no defName, while it\'s not an abstract node. (Abstract attribute is not True)')
-					""" if defName in DefDictByType[node.tag].keys().keys():
-						raise ValueError(f'文件 {file} 的节点{node.tag}的defName重复') """
-					DefDictByType[node.tag][defName] = node
-					attr = node.get('Name', None)
-					if attr is not None:
-						if attr not in NameAttrDict.keys():
-							NameAttrDict[attr] = []
-						NameAttrDict[attr].append(node)
-			except Exception as e:
-				print(f'Error when loading file {file} : node.defName= {defName}\n message: {e}')
-				continue
-	return DefDictByType
+mods: dict[str , str] = {}
+"""
+packageId:Abspath
+"""
+
+@dataclass
+class Def:
+	sourcepackageId: str
+	defName: str
+	defType: str
+	Element: ET._Element
+
+def load_Def(path: str):
+	pass
+
+def load_Patches(path:str):
+	pass
+
+def load_Languages(path:str):
+	pass
 
 
-def find_best_inheritance_node(node: ET._Element):
+def load_mod(packageId:str, path:str) -> typing.Any:
+	modLoader = ml.ModLoadFolder(path)
+	for folder in list(modLoader):
+		print(folder)
+
+def _modloadorder(path: str):
+	global modLoadOrder
+	if path is None:
+		path = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
+	tree: ET._ElementTree = ET.parse(path)
+	root: ET._Element = tree.getroot()
+	for mod in list(root.find('activeMods')):
+		modLoadOrder.append(mod.text)
+
+
+def find_best_inheritance_node(node: ET._Element) -> ET._Element:
 	"""
 	查找最佳的继承节点
 	
 	Args:
-		node (ET._Element): 要查找继承节点的节点
+		node: ET._Element : 要查找继承节点的节点
 	Returns:
 		ET._Element: 最佳的继承节点，None when node has no ParentName or not found
 	"""
@@ -86,15 +87,75 @@ def find_best_inheritance_node(node: ET._Element):
 	#TODO: 读取用户的modsConfig.xml以获取mod加载顺序以获取最后一个加载的对应Def
 	return possible_parents.pop()
 
+def get_mods():
+	global mods
+	for cur, dirs, _ in os.walk(os.path.join(RimWorldFolder, 'Mods')):
+		# Local mods
+		for dir in dirs:
+			if os.path.exists(os.path.join(cur, dir, 'About', 'About.xml')):
+				tree: ET._ElementTree = ET.parse(os.path.join(cur, dir, 'About', 'About.xml'))
+				root: ET._Element = tree.getroot()
+				if root.find('packageId') is None: 
+					print(f'Error: {os.path.join(cur, dir, "About", "About.xml")} has no packageId')
+					continue
+				packageId: str = root.find('packageId').text.lower()
+				mods[packageId] = os.path.join(cur, dir)
+		break
+		
+	for cur, dirs, _ in os.walk(WorkshopFolder):
+		# Workshop mods
+		for dir in dirs:
+			if os.path.exists(os.path.join(cur, dir, 'About', 'About.xml')):
+				tree: ET._ElementTree = ET.parse(os.path.join(cur, dir, 'About', 'About.xml'))
+				root: ET._Element = tree.getroot()
+				if root.find('packageId') is None: 
+					print(f'Error: {os.path.join(cur, dir, "About", "About.xml")} has no packageId')
+					continue
+				packageId: str = (root.find('packageId').text + '_steam').lower()
+				mods[packageId] = os.path.join(cur, dir)
+		break
+				
+	for cur, dirs, _ in os.walk(os.path.join(RimWorldFolder, 'Data')):
+		# Vanilla
+		for dir in dirs:
+			if os.path.exists(os.path.join(cur, dir, 'About', 'About.xml')):
+				tree: ET._ElementTree = ET.parse(os.path.join(cur, dir, 'About', 'About.xml'))
+				root: ET._Element = tree.getroot()
+				if root.find('packageId') is None: 
+					print(f'Error: {os.path.join(cur, dir, "About", "About.xml")} has no packageId')
+					continue
+				packageId : str = root.find('packageId').text.lower()
+				mods[packageId] = os.path.join(cur, dir)
+		break
+
+def main():
+	global RimWorldFolder, WorkshopFolder, DefDictByType, NameAttrDict, modLoadOrder
+	RimWorldFolder = filedialog.askdirectory(title='Choose your RimWorld folder')
+	WorkshopFolder = os.path.normpath(os.path.join(RimWorldFolder, f'../../workshop/content/{RimWorldId}'))
+	#print(RimWorldFolder)
+	#print(WorkshopFolder)
+	get_mods()
+	#print(mods)
+	#load_vanilla(os.path.join(RimWorldFolder, 'Data'))
+	#print(os.getenv('APPDATA'))
+	if platform.system() == 'Windows':
+		if os.path.exists(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml'))):
+			_modloadorder(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml')))
+		else:
+			filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
+			_modloadorder(filepath)
+	else:
+		#TODO: Linux and MacOS
+		filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
+		_modloadorder(filepath)
+
+	#print(f'Mod count: {len(modLoadOrder)}')
+	#print(f'mods: {len(mods)}')
+	for mod in modLoadOrder:
+		if mod in mods.keys():
+			print(f'Loading mod with packageId {mod}: {mod in mods.keys()}')
+			load_mod(mod, mods[mod])
 
 
 if __name__ == "__main__":
-	load_vanilla(r'D:\SteamLibrary\steamapps\common\RimWorld\Data')
-	print(DefDictByType.keys())
-	print(f'Done. Parsed {len(DefDictByType.keys())} files.')
-	root = ET.Element('Defs')
-	tree = ET.ElementTree(root)
-	for DefType, Defs in DefDictByType.items():
-		for defName, node in Defs.items():
-			root.append(node)
-	tree.write('Defs.xml', pretty_print=True, xml_declaration=True, encoding='utf-8')
+	main()

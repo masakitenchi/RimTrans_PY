@@ -6,6 +6,32 @@ import lxml.etree as ET
 from file import BFS, listdir_abspath
 import os
 
+class TranslationFileRenamer(Frame):
+    def __init__(self, Tab: Widget):
+        self.parent = Tab
+        self.parent.rowconfigure(0, weight=1)
+        self.parent.columnconfigure(0, weight=1)
+        self.frame = Frame(Tab, style='Red.TFrame')
+        self.frame.grid(row=0, column=0, sticky='nswe')
+        self.leftframe = Frame(self.frame, style='Green.TFrame')
+        self.middleframe = Frame(self.frame, style='Blue.TFrame')
+        self.rightframe = Frame(self.frame, style='Yellow.TFrame')
+        self.frame.columnconfigure(0, weight=9)
+        self.frame.rowconfigure(0, weight=1)
+        self.frame.columnconfigure(1, weight=2)
+        self.frame.columnconfigure(2, weight=9)
+        self.leftframe.grid(row=0, column=0, sticky='nswe')
+        self.middleframe.grid(row=0, column=1, sticky='nswe')
+        self.rightframe.grid(row=0, column=2, sticky='nswe')
+
+
+    def preview(self, *args):
+        
+        pass
+
+
+
+
 class Patch_Extract_Tab(Frame):
     _singleton = None
 
@@ -293,33 +319,22 @@ class MainWindow(Tk):
         Style().configure("Red.TFrame", background="red")
         Style().configure("Blue.TFrame", background="blue")
         Style().configure("Green.TFrame", background="green")
-        Style().configure('yellow.TFrame', background='yellow')
-        Style().configure('white.TFrame', background='white')
+        Style().configure('Yellow.TFrame', background='yellow')
+        Style().configure('White.TFrame', background='white')
         self.title("RimTrans_PY")
         self.geometry("800x600")
         self.resizable(False,False)
         self.notebook = Notebook(self, width=800, height=600)
-        print(self.notebook.winfo_geometry())
-        """ self.Patch_Extract = Frame(self.notebook)
-        self.Patch_Extract.grid() """
         self.Translation_Clean = Frame(self.notebook)
         self.Test = Frame(self.notebook, style='Red.TFrame', width=800, height=600)
         self.Test.grid()
-        """ self.l =Label(self.notebook, text="Starting...")
-        self.l.grid()
-        self.l.bind('<Enter>', lambda e: self.l.configure(text='Moved mouse inside'))
-        self.l.bind('<Leave>', lambda e: self.l.configure(text='Moved mouse outside'))
-        self.l.bind('<ButtonPress-1>', lambda e: self.l.configure(text='Clicked left mouse button'))
-        self.l.bind('<3>', lambda e: self.l.configure(text='Clicked right mouse button'))
-        self.l.bind('<Double-1>', lambda e: self.l.configure(text='Double clicked'))
-        self.l.bind('<B3-Motion>', lambda e: self.l.configure(text='right button drag to %d,%d' % (e.x, e.y))) """
-        self.notebook.add(self.Test, text="Patch Extractor")
-        #self.notebook.add(self.Translation_Clean, text="Translation Cleaner")
-        #self.notebook.add(self.l, text="Test")
-        #self.notebook.hide(self.notebook.index(self.Patch_Extract))
-        self.notebook.pack()
-        #Patch_Extract_Tab(self.Patch_Extract)
         self.Test_Tab = Patch_Extract_Tab(self.Test)
+        self.Translation_Rename = Frame(self.notebook, style='Green.TFrame', width=800, height=600)
+        self.Translation_Rename.grid()
+        self.Translation_Rename_Tab = TranslationFileRenamer(self.Translation_Rename)
+        self.notebook.add(self.Test, text="Patch Extractor")
+        self.notebook.add(self.Translation_Rename, text="Translation Renamer")
+        self.notebook.pack()
 
 
 if __name__ == "__main__":

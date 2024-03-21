@@ -19,8 +19,6 @@ def BFS(root: str, format: list[str]) -> list[str]:
 		else:
 			for file in filter(lambda x: x.split('.')[-1] in format, files):
 				result.append(OP.abspath(OP.join(cur, file)))
-		for dir in dirs:
-			result.extend(BFS(OP.abspath(OP.join(cur, dir)), format))
 	return result
 
 
@@ -33,3 +31,9 @@ def listdir_abspath(path: str, format: list[str]) -> list[str]:
 		for f in os.listdir(path)
 		if f.split('.')[-1] in format
 	]
+
+
+if __name__ == '__main__':
+	result = BFS(r'D:\SteamLibrary\steamapps\common\RimWorld\Data', ['.xml'])
+	print(len(result))
+	print(len(set(result)))

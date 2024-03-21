@@ -7,7 +7,9 @@ def BFS(root: str, format: list[str]) -> list[str]:
 
 	:param root: 根目录
 	:param format: 文件格式，为None时返回所有文件
+	:return: 所有文件的绝对路径
 	"""
+	format = [f.removeprefix('.') for f in format]
 	result = []
 	for cur, dirs, files in os.walk(root):
 		#print(files)

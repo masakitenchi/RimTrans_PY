@@ -16,17 +16,18 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          pip install lxml
           ./build.sh
-          pushd dist
-          7z a ../Release_windows.zip -tzip -r Pyscripts/
-          popd
+          7z a Release_windows_console.zip -tzip -r ./dist/Pyscripts/*
+          ./build.sh --windowed
+          7z a Release_windows.zip -tzip -r ./dist/Pyscripts/*
           ls
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Release_windows
-          path: Release_windows.zip
+          path: |
+            Release_windows.zip
+            Release_windows_console.zip
   
   release:
     runs-on: ubuntu-latest
@@ -44,16 +45,10 @@ jobs:
         run: ls
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          name: Release ${{ github.ref }}
-          body: |
-            Changes in this Release
-          draft: false
-          prerelease: false 
-          files: |
-            Release_windows.zip
+        shell: bash
+        run: |
+          gh release create ${{ github.ref }} -t 'RimTrans_PY ${{ github.ref }}' -F Release_windows.zip Release_windows_console.zip --generate-notes --latest
+        
   

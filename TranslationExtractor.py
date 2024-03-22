@@ -3,6 +3,15 @@ import os.path
 import lxml.etree as ET
 import regex as re
 import argparse
+import typing
+from file import BFS
+import random
+
+"""
+Consider using ElephantTusk.tools.point.label instead of ElephantTusk.tools.1.label for translation '尖' (Items_Exotic.xml)
+
+where 'point' is the text of label, '1' is the index of the item in the list
+"""
 
 # Find all patches that target defs with defName
 xpath_regex = re.compile(
@@ -11,45 +20,48 @@ xpath_regex = re.compile(
 
 defNames_regex = re.compile(r'defName\W*?=\W*?"(?<defName>.*?)"')
 
-PatchOperations = [
-    "PatchOperationAdd",
-    "PatchOperationReplace",
-    "PatchOperationSequence",
-    "PatchOperationConditional",
-]
-errors = []
 
-Defs_xpath = "//*[preceding-sibling::defName or following-sibling::defName][self::label or self::description]/.."
+Defs_xpath = ET.XPath("//*[preceding-sibling::defName or following-sibling::defName][self::label or self::description]/..")
 
 Patch_xpath = '//xpath[contains(text(),"label") or contains(text(),"description") and not(contains(text(), "labelShort"))]/..'
 
 #lxml seems doesn't support local-name()
 Anomaly_xpath = '//*[@Class="PatchOperationAdd"]/xpath[text()="Defs"]/../value/*[not(@Abstract) or (@Abstract!="True" and @Abstract!="true")]'
 
+def extract_sub(tree: ET._ElementTree, xpath: str, targets: list[str]) -> typing.Any:
+    """
+    :param root: The parsed xml tree for extraction
+    :param xpath:
+    """
+    nodes: list[ET._Element] = tree.xpath(xpath)
+    for node in nodes:
+        for subelement in node.iter():
+            if type(subelement) == ET._Element:
+                if subelement.tag != 'li':
+                    print(subelement.tag + ' ' + subelement.text if subelement.text is not None else '')
+                else:
+                    print('li ' + subelement.get('Class', ''))
+
 
 
 def extract(list_paths: list[str], target=('Def', 'Patch')) -> dict[str, dict[str, str]]:
-    """总提取函数
-
+    """
+    总提取函数
     :param list_paths: 所有文件的绝对路径列表
     :param target: 提取目标，Def或Patch
     :return: dict[defType: str, dict[defName: str, field: str]] 按defType分类的提取结果
     """
     pairs: dict[str, dict[str, str]] = dict()
-    # os.makedirs('extracted', exist_ok=True)
     for file in list_paths:
         try:
-            print(f"parsing {file}")
             count = 0
             if not os.path.isabs(file) or not os.path.isfile(file):
-                errors.append(f"path {file} does not target a file or is not absolute")
                 raise Exception(f"path {file} does not target a file or is not absolute")
             tree = ET.parse(file)
             root: ET._Element = tree.getroot()
             if root.tag == "Defs" and 'Def' in target:
                 # only looks for non-virtual defs
-                nodes = root.xpath(Defs_xpath)
-                if len(nodes) > 0: print(f"found {len(nodes)} defs in {file}")
+                nodes = Defs_xpath(root)
                 for node in nodes:
                     defType = node.tag
                     if defType not in pairs:
@@ -68,7 +80,6 @@ def extract(list_paths: list[str], target=('Def', 'Patch')) -> dict[str, dict[st
             elif root.tag == 'Patch' and 'Patch' in target:
                 # looks for all patches that targeting label or description
                 nodes = root.xpath(Patch_xpath)
-                if len(nodes) > 0: print(f"found {len(nodes)} patches in {file}")
                 for node in nodes:
                     xpath = node.find("./xpath")
                     match = re.match(xpath_regex, xpath.text)
@@ -85,7 +96,6 @@ def extract(list_paths: list[str], target=('Def', 'Patch')) -> dict[str, dict[st
                         key = f"{defName}.{field}"
                         pairs[defType][key] = value
                 anomaly_nodes = root.xpath(Anomaly_xpath)
-                if len(anomaly_nodes) > 0: print(f"found {len(anomaly_nodes)} anomaly_nodes in {file}")
                 for node in anomaly_nodes:
                     defName = node.find("./defName").text
                     label = node.find("./label").text if node.find("./label") is not None else ""
@@ -103,17 +113,6 @@ def extract(list_paths: list[str], target=('Def', 'Patch')) -> dict[str, dict[st
              print(f"Error when parsing {file}, message: {e}")
             continue
     return pairs
-
-
-def BFS(root: str) -> list[str]:
-    result = list()
-    for cur, leafs, files in os.walk(root):
-        for file in files:
-            if file.endswith(".xml"):
-                result.append(os.path.abspath(os.path.join(cur, file)))
-        for leaf in leafs:
-            result.extend(BFS(leaf))
-    return result
 
 
 def main(dirpath: str, recursive: bool = False) -> dict[str, ET._ElementTree]:
@@ -143,31 +142,33 @@ def main(dirpath: str, recursive: bool = False) -> dict[str, ET._ElementTree]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--folder", "-f", action="store", metavar="目标文件夹")
+    parser.add_argument("--dry-run", '-d', action='store_true', default=True, help='不生成文件，只输出结果')
     result = parser.parse_args()
     if not result.folder:
         path = os.path.abspath(".")
     else:
         path = os.path.abspath(result.folder)
-    list_files = BFS(path)
+    list_files = BFS(path, ['.xml'])
+    print(list_files)
+    for file in list_files:
+        root = ET.parse(file).getroot()
+        if root.tag == 'Defs':
+            extract_sub(ET.parse(file), Defs_xpath.path, ['label', 'description'])
     pairs = extract(list_files)
     print(pairs)
-    os.makedirs("extracted", exist_ok=True)
-    for defType, results in pairs.items():
-        os.makedirs(f"extracted/{defType}", exist_ok=True)
-        root: ET._Element = ET.Element("LanguageData")
-        root.addprevious(ET.Comment("This file was generated by Patch_Extract.py"))
-        tree: ET._ElementTree = ET.ElementTree(root)
-        for key, value in results.items():
-            defName = ET.SubElement(root, key)
-            defName.text = value
-        tree.write(
-            f"extracted/{defType}/ExtractedPatch.xml",
-            pretty_print=True,
-            xml_declaration=True,
-            encoding="utf-8",
-        )
-    if len(errors) > 0:
-        for e in errors:
-            print(e)
-        exit(1)
-    exit(0)
+    if not result.dry_run:
+        os.makedirs("extracted", exist_ok=True)
+        for defType, results in pairs.items():
+            os.makedirs(f"extracted/{defType}", exist_ok=True)
+            root: ET._Element = ET.Element("LanguageData")
+            root.addprevious(ET.Comment("This file was generated by Patch_Extract.py"))
+            tree: ET._ElementTree = ET.ElementTree(root)
+            for key, value in results.items():
+                defName = ET.SubElement(root, key)
+                defName.text = value
+            tree.write(
+                f"extracted/{defType}/ExtractedPatch.xml",
+                pretty_print=True,
+                xml_declaration=True,
+                encoding="utf-8",
+            )

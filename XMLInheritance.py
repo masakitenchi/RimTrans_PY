@@ -10,6 +10,14 @@ from concurrent.futures import ThreadPoolExecutor, Future
 import time
 import argparse
 
+@dataclass
+class XmlInheritanceNode:
+	XmlNode: ET._Element
+	ResolvedXmlNode: ET._Element
+	mod: str
+	parent: ET._Element
+	childrens: list[ET._Element] = field(default_factory=list)
+
 RimWorldId = 294100
 WorkshopFolder: str = ""
 RimWorldFolder: str = ""
@@ -30,15 +38,12 @@ mods: dict[str , str] = {}
 """
 packageId:Abspath
 """
+unresolvedNodes: dict[str, XmlInheritanceNode] = []
+"""
+defName:XmlInheritanceNode
+"""
+resolvedNodes: set[XmlInheritanceNode] = []
 
-
-@dataclass
-class XmlInheritanceNode:
-	XmlNode: ET._Element
-	ResolvedXmlNode: ET._Element
-	mod: str
-	parent: ET._Element
-	childrens: list[ET._Element] = field(default_factory=list)
 
 def split_list(l: list, n: int) -> list[list]:
 	k, m = divmod(len(l), n)

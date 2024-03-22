@@ -8,3 +8,6 @@ Defs.xml
 
 # Python cache files
 __pycache__
+
+# viztracer related files
+result.json

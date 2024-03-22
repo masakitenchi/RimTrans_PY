@@ -1,4 +1,4 @@
-from TranslationExtractor import PE
+import TranslationExtractor as PE
 from tkinter import *
 from tkinter.ttk import *
 from tkinter import filedialog, messagebox

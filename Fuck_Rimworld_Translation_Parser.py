@@ -6,8 +6,8 @@ import sys
 """
 Rimworld treat all folders in loadfolders.xml as one virtual folder, thus:
 Lets say if you have two files with the same name and the same defType, but in different folders:
- - Mod1/Languages/English/DefInjected/ThingDef/ThingDef.xml
- - Mod2/Languages/English/DefInjected/ThingDef/ThingDef.xml
+ - TranslationModFolderName/Mod1/Languages/English/DefInjected/ThingDef/ThingDef.xml
+ - TranslationModFolderName/Mod2/Languages/English/DefInjected/ThingDef/ThingDef.xml
 Then congratulations, game will only load the "first" file (which, counter-intuitively, is the last mod listed in LoadFolders.xml), and all translations in the second file is lost.
 You may wonder why this could ever happen, but the game treat them as a dict, which, if is written in C#, would be:
 

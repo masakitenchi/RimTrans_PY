@@ -1,20 +1,31 @@
+import unittest
 import lxml.etree as ET
 import os
 from file import BFS
-from tkinter import filedialog
+from tkinter import NO, filedialog
 import platform
-from TranslationExtractor import ModLoader as ml
+from ModLoadFolder import ModLoadFolder
 import typing
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, Future
 import time
 import argparse
+import random
+
+
+@dataclass
+class ModContentPack:
+	path: str
+	packageId: str
+	supportedversions: list[str] = field(default_factory=list)
+	modDependencies: list[str] = field(default_factory=list)
+
 
 @dataclass
 class XmlInheritanceNode:
 	XmlNode: ET._Element
 	ResolvedXmlNode: ET._Element
-	mod: str
+	mod: ModContentPack
 	parent: ET._Element
 	childrens: list[ET._Element] = field(default_factory=list)
 
@@ -34,41 +45,37 @@ key是Name属性，value是拥有该Name属性的节点的列表
 """
 expansion_dir = ['Core', 'Royalty', 'Ideology', 'Biotech']
 
-mods: dict[str , str] = {}
-"""
-packageId:Abspath
-"""
-unresolvedNodes: dict[str, XmlInheritanceNode] = []
+unresolvedNodes: dict[str, XmlInheritanceNode] = {}
 """
 defName:XmlInheritanceNode
 """
-resolvedNodes: set[XmlInheritanceNode] = []
+resolvedNodes: set[XmlInheritanceNode] = set()
 
 
 def split_list(l: list, n: int) -> list[list]:
 	k, m = divmod(len(l), n)
 	return [l[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
-
+def Combine(rootTag: str, *args: ET._ElementTree) -> ET._ElementTree:
+	root = ET.Element(rootTag)
+	tree = ET.ElementTree(root)
+	for t in args:
+		t: ET._ElementTree
+		troot: ET._Element = t.getroot()
+		for node in iter(troot):
+			root.append(node)
+	return tree
 def load_xmls(path: str, rootTag: str, executor: ThreadPoolExecutor = None) -> ET._ElementTree:
-	def Combine(trees: list[ET._ElementTree], rootTag: str) -> ET._ElementTree:
-		root = ET.Element(rootTag)
-		tree = ET.ElementTree(root)
-		for t in trees:
-			t: ET._ElementTree
-			troot: ET._Element = t.getroot()
-			for node in troot:
-				root.append(node)
-		return tree
+	
 	files = BFS(path, ['.xml'])
-	if len(files) == 0: return None
+	if len(files) == 0: return ET.ElementTree(ET.Element(rootTag))
 	if executor is None:
 		return load_xmls_sub(files, rootTag)
 	tasks: list[Future] = []
-	for flist in split_list(files, os.cpu_count() // 3):
+	for flist in split_list(files, executor._max_workers):
 		future = executor.submit(load_xmls_sub, flist, rootTag)
 		tasks.append(future)
-	results = [future.result() for future in tasks]
-	return Combine(results, rootTag)
+	results: list[ET._ElementTree] = [future.result() for future in tasks]
+	return Combine(rootTag, *results)
 
 def load_xmls_sub(paths: list[str], rootTag: str) -> ET._ElementTree:
 	root = ET.Element(rootTag)
@@ -87,58 +94,42 @@ def load_xmls_sub(paths: list[str], rootTag: str) -> ET._ElementTree:
 			continue
 	return tree
 
-def load_mod(path:str, language: str, executor: ThreadPoolExecutor = None) -> list[ET._ElementTree, ET._ElementTree, ET._ElementTree]:
-	modLoader = ml.ModLoadFolder(path)
-	result: list[ET._ElementTree, ET._ElementTree, ET._ElementTree] = []
-	for folder in list(modLoader):
-		result.append(load_xmls(os.path.join(folder, 'Defs'), 'Defs', executor=executor))
-		result.append(load_xmls(os.path.join(folder, 'Patches'), 'Patch', executor=executor))
-		if os.path.exists(os.path.join(folder, 'Languages')):
+def load_mod(path:str, language: str = '', version: str = '1.4', executor: ThreadPoolExecutor = None) -> tuple[ET._ElementTree, ET._ElementTree, ET._ElementTree]:
+	"""
+	Given a path to a mod's folder, load all XMLs in loadfolders/(Defs, Patches, [Languages])
+	:param path: path to the mod's folder
+	:param language: language to load, leave it None to skip loading
+	:param executor: ThreadPoolExecutor to use, leave it None to use single thread
+	:return: a tuple of ET._ElementTrees containing XML tree of Defs, Patches, and Languages
+	"""
+	modLoader = ModLoadFolder(path)
+	result: list[ET._ElementTree] = [ET.ElementTree(ET.Element('Defs')), ET.ElementTree(ET.Element('Patches')), ET.ElementTree(ET.Element('LanguageData'))]
+	for folder in modLoader[version]:
+		result[0] = Combine('Defs', *(result[0], load_xmls(os.path.join(folder.path, 'Defs'), 'Defs', executor=executor)))
+		result[1] = Combine('Patch', *(result[1], load_xmls(os.path.join(folder.path, 'Patches'), 'Patch', executor=executor)))
+		if language != '' and os.path.exists(os.path.join(folder.path, 'Languages')):
 			try:
-				LanguageDataFolder = next(f for f in os.listdir(os.path.join(folder, 'Languages')) if os.path.isdir(f) and language in f)
-				result.append(load_xmls(LanguageDataFolder, 'LanguageData', executor=executor))
+				LanguageDataFolder = next(f for f in os.listdir(os.path.join(folder.path, 'Languages')) if os.path.isdir(f) and language in f)
+				result[2] = Combine('LanguageData', *(result[2], load_xmls(LanguageDataFolder, 'LanguageData', executor=executor)))
 			except StopIteration:
 				continue
-	return result
+	return tuple(result)
 
 
-def _modloadorder(path: str):
-	global modLoadOrder
+def _modloadorder(path: str) -> list[str]:
+	modLoadOrder = []
 	if path is None:
 		path = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
 	tree: ET._ElementTree = ET.parse(path)
 	root: ET._Element = tree.getroot()
 	for mod in list(root.find('activeMods')):
 		modLoadOrder.append(mod.text)
+	return modLoadOrder
 
-def find_best_inheritance_node(node: ET._Element) -> ET._Element:
-	"""
-	查找最佳的继承节点
-	Args:
-		node: ET._Element : 要查找继承节点的节点
-	Returns:
-		ET._Element: 最佳的继承节点，None when node has no ParentName or not found
-	"""
-	defName = node.find('defName').text
-	defType = node.tag
-	possible_parents = []
-	if node.get('parentName', None) is not None:
-		parentName = node.get('parentName')
-		if parentName in ElementsByAttrName.keys():
-			parents = ElementsByAttrName[parentName]
-			for parent in parents:
-				#当然只会考虑相同类型的Def
-				if parent.tag == node.tag:
-					possible_parents.append(parent)
-		else:
-			raise ValueError(f'节点{node.tag}.{defName}的parentName属性值{parentName}不存在')
-	else:
-		return None
-	#TODO: 读取用户的modsConfig.xml以获取mod加载顺序以获取最后一个加载的对应Def
-	return possible_parents.pop()
-
-def _get_mods():
-	global mods
+def _get_mods(**kwargs) -> dict[str, str]:
+	mods = {}
+	RimWorldFolder = kwargs.get('RimWorldFolder')
+	WorkshopFolder = kwargs.get('WorkshopFolder')
 	for cur, dirs, _ in os.walk(os.path.join(RimWorldFolder, 'Mods')):
 		# Local mods
 		for dir in dirs:
@@ -146,7 +137,7 @@ def _get_mods():
 				tree: ET._ElementTree = ET.parse(os.path.join(cur, dir, 'About', 'About.xml'))
 				root: ET._Element = tree.getroot()
 				if root.find('packageId') is None: 
-					print(f'Error: {os.path.join(cur, dir, "About", "About.xml")} has no packageId')
+					print(f'Warning: "{os.path.join(cur, dir, "About", "About.xml")}" has no packageId')
 					continue
 				packageId: str = root.find('packageId').text.lower()
 				mods[packageId] = os.path.join(cur, dir)
@@ -177,36 +168,37 @@ def _get_mods():
 				packageId : str = root.find('packageId').text.lower()
 				mods[packageId] = os.path.join(cur, dir)
 		break
+	return mods
 
-def main(parallel: bool = False, activeLanguage: str = 'ChineseSimplified'):
-	global RimWorldFolder, WorkshopFolder, DefsByDefType, ElementsByAttrName, modLoadOrder
+def main(parallel: bool = False, activeLanguage: str = 'ChineseSimplified') -> None:
+	global RimWorldFolder, WorkshopFolder, DefsByDefType, ElementsByAttrName
 	RimWorldFolder = filedialog.askdirectory(title='Choose your RimWorld folder')
 	WorkshopFolder = os.path.normpath(os.path.join(RimWorldFolder, f'../../workshop/content/{RimWorldId}'))
 	if not os.path.exists(RimWorldFolder):
 		print('RimWorld folder not found')
 		return
-	_get_mods()
+	mods = _get_mods(RimWorldFolder=RimWorldFolder, WorkshopFolder=WorkshopFolder)
 	if platform.system() == 'Windows':
 		if os.path.exists(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml'))):
 			print('Using default ModsConfig.xml?(Y/N)')
 			if input().lower() == 'y':
-				_modloadorder(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml')))
+				modLoadOrder = _modloadorder(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml')))
 			else:
 				filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-				_modloadorder(filepath)
+				modLoadOrder = _modloadorder(filepath)
 		else:
 			filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-			_modloadorder(filepath)
+			modLoadOrder = _modloadorder(filepath)
 	else:
 		#TODO: Linux and MacOS
 		filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-		_modloadorder(filepath)
+		modLoadOrder = _modloadorder(filepath)
 	if parallel:
 		ttstart = time.time()
 		for mod in modLoadOrder:
 			if mod in mods.keys():
 				with ThreadPoolExecutor(max_workers=os.cpu_count() // 3) as executor:
-					load_mod(mods[mod], activeLanguage, executor)
+					load_mod(mods[mod], activeLanguage, executor=executor)
 		ttend = time.time()
 		print(f'Loaded all mods in {(ttend - ttstart) * 1000:.2f} ms (parallel)')
 	else:
@@ -216,6 +208,7 @@ def main(parallel: bool = False, activeLanguage: str = 'ChineseSimplified'):
 				load_mod(mods[mod], activeLanguage)
 		ttend = time.time()
 		print(f'Loaded all mods in {(ttend - ttstart) * 1000:.2f} ms (nonparallel)')
+
 
 
 

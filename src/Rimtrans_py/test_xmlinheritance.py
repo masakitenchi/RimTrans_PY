@@ -25,9 +25,9 @@ class _LoadTest(unittest.TestCase):
 	
 	def test_write_etree(self) -> None:
 		#print(self.mods)
-		path = str(random.choice(list(self.mods.values())))
+		path = str(self.mods['dubwise.rimatomics'])
 		print(f'path = "{path}"')
-		Defs, Patches, Languages = load_mod(path, 'ChineseSimplified')
+		Defs, Patches, Languages = load_mod(path, 'ChineseSimplified', '1.4')
 		Defs.getroot().text = '\n\t'
 		Defs.write('Defs.xml', encoding='utf-8', xml_declaration=True, pretty_print=True)
 		Patches.write('Patches.xml')

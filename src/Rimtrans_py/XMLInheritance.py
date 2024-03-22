@@ -56,7 +56,7 @@ def split_list(l: list, n: int) -> list[list]:
 	k, m = divmod(len(l), n)
 	return [l[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
 def Combine(rootTag: str, *args: ET._ElementTree) -> ET._ElementTree:
-	root = ET.Element(rootTag)
+	root: ET._Element = ET.Element(rootTag)
 	tree = ET.ElementTree(root)
 	for t in args:
 		t: ET._ElementTree

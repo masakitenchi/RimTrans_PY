@@ -49,6 +49,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          gh release create ${{ github.ref }} -t 'RimTrans_PY ${{ github.ref }}' -F Release_windows.zip Release_windows_console.zip --generate-notes --latest
+          gh release create ${{ github.ref }} -t 'RimTrans_PY ${{ github.ref_name }}'--generate-notes --latest Release_windows.zip Release_windows_console.zip
         
   

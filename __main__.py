@@ -114,8 +114,8 @@ class Patch_Extract_Tab(Frame):
         self.canvas.create_window((0, 0), window=self.Checkboxes, anchor="nw", tags="MainFrame")
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         self.canvas.grid(sticky='nswe')
-        print(self.canvas.bbox('all')[3])
-        print(self.Main_Rect.winfo_height())
+        #print(self.canvas.bbox('all')[3])
+        #print(self.Main_Rect.winfo_height())
         if self.canvas.bbox('all')[2] > self.Main_Rect.winfo_width() + 20:
             self.scrbrX.grid(row=1, column=0, sticky='we')
         else:

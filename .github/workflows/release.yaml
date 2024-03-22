@@ -16,6 +16,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          pip install lxml
           ./build.sh
           pushd dist
           7z a ../Release_windows.zip -tzip -r Pyscripts/

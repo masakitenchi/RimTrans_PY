@@ -1,5 +1,6 @@
 #!/bin/bash
 pip install pyinstaller
+pip install lxml
 
 args="-n Pyscripts -y"
 while [[ "$#" -gt 0 ]]; do
@@ -10,4 +11,4 @@ while [[ "$#" -gt 0 ]]; do
 			;;
 	esac
 done
-pyinstaller __main__.py $args 
+pyinstaller __main__.py $args

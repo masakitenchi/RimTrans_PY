@@ -5,7 +5,6 @@ import regex as re
 import argparse
 import typing
 from file import BFS
-import random
 
 """
 Consider using ElephantTusk.tools.point.label instead of ElephantTusk.tools.1.label for translation '尖' (Items_Exotic.xml)

@@ -22,7 +22,6 @@ class _LoadTest(unittest.TestCase):
 		for mod in self.modLoadOrder:
 			if mod in self.mods.keys():
 				load_mod(self.mods[mod], 'ChineseSimplified')
-	
 	def test_write_etree(self) -> None:
 		#print(self.mods)
 		path = str(self.mods['dubwise.rimatomics'])

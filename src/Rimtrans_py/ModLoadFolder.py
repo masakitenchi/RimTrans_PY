@@ -1,7 +1,7 @@
 import os
 import os.path as OP
 from lxml import etree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import unittest
 
 
@@ -13,8 +13,8 @@ major_versions: set[str] = {'1.0', '1.1', '1.2', '1.3', '1.4', '1.5', 'default'}
 @dataclass
 class Loadfolders:
     path: str
-    IfActive: list[str]
-    IfNotActive: list[str]
+    IfActive: list[str] = field(default_factory=list)
+    IfNotActive: list[str] = field(default_factory=list)
 
 class ModLoadFolder:
     def __init__(self, mod_dir: str):
@@ -24,10 +24,11 @@ class ModLoadFolder:
         if not OP.isabs(mod_dir):
             raise ValueError("mod_dir must be an absolute path")
         self.mod_dir = mod_dir
-        self.loadfolderfile = next(
-            (f for f in os.scandir(mod_dir) if f.is_file() and "loadfolder" in f.name.lower()), None
-        )
-        self._loadfolders: dict[str, list[Loadfolders]] = {ver: [] for ver in major_versions}
+        with os.scandir(mod_dir) as it:
+            self.loadfolderfile = next(
+                (f for f in it if f.is_file() and "loadfolder" in f.name.lower()), None
+            )
+        self._loadfolders: dict[str, list[Loadfolders]] = {'default': []}
         if self.loadfolderfile:
             self._parseLoadFolders()
         else:
@@ -35,13 +36,19 @@ class ModLoadFolder:
             print(f'Warning :: mod in {mod_dir} doesn\'t have loadfolders.xml, reading root dir instead')
             for dir in filter(lambda x: os.path.isdir(x), os.scandir(mod_dir)):
                 if dir.name in major_versions:
+                    if dir.name not in self._loadfolders.keys():
+                        self._loadfolders[dir.name] = []
                     self._loadfolders[dir.name].append(Loadfolders(os.path.normpath(os.path.join(mod_dir, dir.path))))
+                elif dir.name == 'Defs' or dir.name == 'Patches' or dir.name == 'Languages':
+                    for ver in self._loadfolders.keys():
+                        self._loadfolders[ver].append(Loadfolders(os.path.normpath(os.path.join(mod_dir, dir.path))))
                 else: pass # Vanilla also has this behaviour, but I don't want to add it
                 path = os.path.normpath(f'{mod_dir}/Common')
                 if os.path.exists(path):
                     for ver in self._loadfolders.keys():
                         self._loadfolders[ver].append(Loadfolders(path))
                         self._loadfolders[ver].append(Loadfolders(os.path.normpath(mod_dir)))
+        
     def _parseLoadFolders(self):
         # Vanilla Behaviour:
         tree = ET.parse(f"{self.mod_dir}/{self.loadfolderfile.name}")
@@ -54,6 +61,8 @@ class ModLoadFolder:
             name: str = node.tag.lower()
             if "v" in name:
                 name = name[1:]
+                if name not in self._loadfolders:
+                    self._loadfolders[name] = []
                 for folder in filter(lambda x: type(x) is ET._Element and x.text is not None, node):
                     folder: ET._Element
                     IfModActives: list[str] | None = folder.get('IfModActive', None)
@@ -93,6 +102,7 @@ class ModLoadFolder:
         ModLoadFolder[ver] is also supported
 
         :param ver: RimWorld version, in major.minor format
+        :returns: list of Loadfolders, if the version doesn't exist, return default loadfolders instead
         """
         return self._loadfolders[ver]
     
@@ -101,10 +111,10 @@ class ModLoadFolder:
 
 class ModLoadFolderTest(unittest.TestCase):
     def test_core(self):
-        ModLoadFolder("D:\\SteamLibrary\\steamapps\\common\\RimWorld\\Data\\Core")._loadfolders
+        print(ModLoadFolder("D:\\SteamLibrary\\steamapps\\common\\RimWorld\\Data\\Core")._loadfolders)
     
     def test_mod(self):
-        ModLoadFolder("D:\\SteamLibrary\\steamapps\\common\\RimWorld\\Mods\\HSK_CN")._loadfolders
+        print(ModLoadFolder("D:\\SteamLibrary\\steamapps\\common\\RimWorld\\Mods\\HSK_CN")._loadfolders)
 
 """ if __name__ == "__main__":
     unittest.main() """

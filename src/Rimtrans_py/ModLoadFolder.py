@@ -33,8 +33,7 @@ class ModLoadFolder:
             self._parseLoadFolders()
         if 'default' not in self._loadfolders.keys():
             # Which means loadfolders.xml doesn't have a <default>
-            self._loadfolders['default'] = []
-            if len(self._loadfolders.keys()) == 1: # No version specific folders (loadfolders.xml doesn't even exist)
+            if len(self._loadfolders.keys()) == 0: # No version specific folders (loadfolders.xml doesn't even exist)
                 self._generatedefaultLoadFolders()
             else:
                 try:
@@ -45,14 +44,12 @@ class ModLoadFolder:
                     self._loadfolders['default'] = []
 
     def _generatedefaultLoadFolders(self) -> None:
+        self._loadfolders['default'] = [Loadfolders(self.mod_dir)]
         for dir in filter(lambda x: os.path.isdir(x), os.scandir(self.mod_dir)):
                 if dir.name in major_versions:
                     if dir.name not in self._loadfolders.keys():
                         self._loadfolders[dir.name] = []
                     self._loadfolders[dir.name].append(Loadfolders(os.path.normpath(os.path.join(self.mod_dir, dir.path))))
-                elif dir.name == 'Defs' or dir.name == 'Patches' or dir.name == 'Languages':
-                    for ver in self._loadfolders.keys():
-                        self._loadfolders[ver].append(Loadfolders(os.path.normpath(os.path.join(self.mod_dir, dir.path))))
                 else: pass # Vanilla also has a behaviour that parses through all folders that tries to find a folder matches version string, but I don't want to add it atm
                 path = os.path.normpath(f'{self.mod_dir}/Common')
                 if os.path.exists(path):

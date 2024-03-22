@@ -109,7 +109,7 @@ def load_mod(path:str, language: str = '', version: str = '1.4', executor: Threa
 		result[1] = Combine('Patch', *(result[1], load_xmls(os.path.join(folder.path, 'Patches'), 'Patch', executor=executor)))
 		if language != '' and os.path.exists(os.path.join(folder.path, 'Languages')):
 			try:
-				LanguageDataFolder = next(f for f in os.listdir(os.path.join(folder.path, 'Languages')) if os.path.isdir(f) and language in f)
+				LanguageDataFolder = next(os.path.join(folder.path, 'Languages', f) for f in os.listdir(os.path.join(folder.path, 'Languages')) if (os.path.isdir(os.path.join(folder.path, 'Languages', f)) and language in f))
 				result[2] = Combine('LanguageData', *(result[2], load_xmls(LanguageDataFolder, 'LanguageData', executor=executor)))
 			except StopIteration:
 				continue

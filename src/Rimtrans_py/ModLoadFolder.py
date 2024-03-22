@@ -8,7 +8,7 @@ import unittest
 
 latest_stable_major_ver: tuple[int,int] = (1,4)
 
-major_versions: set[str] = {'1.0', '1.1', '1.2', '1.3', '1.4', '1.5', 'default'}
+major_versions: tuple[str] = ('1.0', '1.1', '1.2', '1.3', '1.4', '1.5', 'default')
 
 @dataclass
 class Loadfolders:
@@ -17,7 +17,7 @@ class Loadfolders:
     IfNotActive: list[str] = field(default_factory=list)
 
 class ModLoadFolder:
-    def __init__(self, mod_dir: str):
+    def __init__(self, mod_dir: str) -> None:
         """
         :param mod_dir: mod文件夹的绝对路径
         """
@@ -28,28 +28,39 @@ class ModLoadFolder:
             self.loadfolderfile = next(
                 (f for f in it if f.is_file() and "loadfolder" in f.name.lower()), None
             )
-        self._loadfolders: dict[str, list[Loadfolders]] = {'default': []}
+        self._loadfolders: dict[str, list[Loadfolders]] = {}
         if self.loadfolderfile:
             self._parseLoadFolders()
-        else:
-            # ModContentPack.cs
-            print(f'Warning :: mod in {mod_dir} doesn\'t have loadfolders.xml, reading root dir instead')
-            for dir in filter(lambda x: os.path.isdir(x), os.scandir(mod_dir)):
+        if 'default' not in self._loadfolders.keys():
+            # Which means loadfolders.xml doesn't have a <default>
+            self._loadfolders['default'] = []
+            if len(self._loadfolders.keys()) == 1: # No version specific folders (loadfolders.xml doesn't even exist)
+                self._generatedefaultLoadFolders()
+            else:
+                try:
+                    # Find the 'latest' version in loadfolders.xml
+                    self._loadfolders['default'] = next(self._loadfolders[f] for f in major_versions[-2:0:-1] if f in self._loadfolders.keys())
+                except StopIteration:
+                    # Not sure when this will happen, but it really can happen
+                    self._loadfolders['default'] = []
+
+    def _generatedefaultLoadFolders(self) -> None:
+        for dir in filter(lambda x: os.path.isdir(x), os.scandir(self.mod_dir)):
                 if dir.name in major_versions:
                     if dir.name not in self._loadfolders.keys():
                         self._loadfolders[dir.name] = []
-                    self._loadfolders[dir.name].append(Loadfolders(os.path.normpath(os.path.join(mod_dir, dir.path))))
+                    self._loadfolders[dir.name].append(Loadfolders(os.path.normpath(os.path.join(self.mod_dir, dir.path))))
                 elif dir.name == 'Defs' or dir.name == 'Patches' or dir.name == 'Languages':
                     for ver in self._loadfolders.keys():
-                        self._loadfolders[ver].append(Loadfolders(os.path.normpath(os.path.join(mod_dir, dir.path))))
-                else: pass # Vanilla also has this behaviour, but I don't want to add it
-                path = os.path.normpath(f'{mod_dir}/Common')
+                        self._loadfolders[ver].append(Loadfolders(os.path.normpath(os.path.join(self.mod_dir, dir.path))))
+                else: pass # Vanilla also has a behaviour that parses through all folders that tries to find a folder matches version string, but I don't want to add it atm
+                path = os.path.normpath(f'{self.mod_dir}/Common')
                 if os.path.exists(path):
                     for ver in self._loadfolders.keys():
                         self._loadfolders[ver].append(Loadfolders(path))
-                        self._loadfolders[ver].append(Loadfolders(os.path.normpath(mod_dir)))
-        
-    def _parseLoadFolders(self):
+                        self._loadfolders[ver].append(Loadfolders(os.path.normpath(self.mod_dir)))
+
+    def _parseLoadFolders(self) -> None:
         # Vanilla Behaviour:
         tree = ET.parse(f"{self.mod_dir}/{self.loadfolderfile.name}")
         root: ET._Element = tree.getroot()
@@ -80,6 +91,7 @@ class ModLoadFolder:
                                                         IfModActives,
                                                         IfModNotActives))
             elif name.lower() == 'default':
+                if 'default' not in self._loadfolders: self._loadfolders['default'] = []
                 for folder in filter(lambda x: type(x) is ET._Element and x.text is not None, node):
                         folder: ET._Element
                         IfModActives: list[str] | None = folder.get('IfModActive', None)
@@ -104,17 +116,20 @@ class ModLoadFolder:
         :param ver: RimWorld version, in major.minor format
         :returns: list of Loadfolders, if the version doesn't exist, return default loadfolders instead
         """
+        if ver not in self._loadfolders.keys():
+            return self._loadfolders['default']
         return self._loadfolders[ver]
     
     __getitem__ = __call__
 
+    def allSupportedVersions(self) -> list[str]:
+        """
+        Get all supported RimWorld versions
+        """
+        return list(self._loadfolders.keys())
 
-class ModLoadFolderTest(unittest.TestCase):
-    def test_core(self):
-        print(ModLoadFolder("D:\\SteamLibrary\\steamapps\\common\\RimWorld\\Data\\Core")._loadfolders)
-    
-    def test_mod(self):
-        print(ModLoadFolder("D:\\SteamLibrary\\steamapps\\common\\RimWorld\\Mods\\HSK_CN")._loadfolders)
+
+
 
 """ if __name__ == "__main__":
     unittest.main() """

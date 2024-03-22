@@ -1,3 +1,3 @@
 #!/bin/bash
 # Run the python script
-python ./__main__.py 
+python src/Rimtrans_py/__main__.py 

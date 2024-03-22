@@ -11,3 +11,6 @@ __pycache__
 
 # viztracer related files
 result.json
+
+# python vitrual environment
+.venv

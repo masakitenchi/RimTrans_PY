@@ -1,6 +1,5 @@
 #!/bin/bash
-pip install pyinstaller
-pip install lxml
+pip install -r requirements.txt
 
 args="-n Pyscripts -y"
 while [[ "$#" -gt 0 ]]; do
@@ -11,4 +10,4 @@ while [[ "$#" -gt 0 ]]; do
 			;;
 	esac
 done
-pyinstaller __main__.py $args
+pyinstaller src/Rimtrans_py/__main__.py $args

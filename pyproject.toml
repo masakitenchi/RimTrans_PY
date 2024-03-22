@@ -1,0 +1,6 @@
+[build-system]
+requires = ['lxml','regex','pyinstaller']
+
+[project]
+name = 'Rimtrans-PY'
+version = '0.1.1'

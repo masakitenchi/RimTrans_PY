@@ -5,6 +5,8 @@ dist
 
 # Test files
 Defs.xml
+Languages.xml
+Patches.xml
 
 # Python cache files
 __pycache__

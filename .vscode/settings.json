@@ -1,0 +1,10 @@
+{
+	"python.testing.unittestArgs": [
+		"-v",
+		"-s",
+		"./src/Rimtrans_py",
+		"-p",
+		"test*.py"
+	],
+	"python.testing.unittestEnabled": true,
+}

@@ -1,11 +1,11 @@
 import lxml.etree as ET
-from ModLoadFolder import ModLoadFolder
-from ModLoader import load_mod_single, load_mods, get_modloadorder, load_mod
+import os, random, json, platform
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-import os, random, json, platform
 from tkinter import filedialog
 from FileParser import BFS
+from ModLoadFolder import ModLoadFolder
+from ModLoader import load_mod_single, load_mods, get_modloadorder, load_mod
 from XmlInheritanceResolver import XMLInheritance as XI
 
 @unittest.skipIf(platform.system() != 'Windows', 'Windows only at the moment')
@@ -25,7 +25,12 @@ class Test(unittest.TestCase):
 					self.ModsConfigPath = os.path.join(appdata, '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios/Config/ModsConfig.xml')
 			else:
 				self.ModsConfigPath = filedialog.askopenfilename(title='Select ModsConfig.xml')
-		self.mods = load_mods(RimWorldFolder=self.RimWorldFolder, WorkshopFolder=self.WorkshopFolder)
+		args = {
+			os.path.join(self.RimWorldFolder, 'Data') : None,
+			os.path.join(self.RimWorldFolder, 'Mods') : None,
+			self.WorkshopFolder : '_steam'
+			}
+		self.mods = load_mods(args)
 		self.modLoadOrder = get_modloadorder(self.ModsConfigPath)
 	def test_load_parallel(self) -> None:
 		for mod in self.modLoadOrder:

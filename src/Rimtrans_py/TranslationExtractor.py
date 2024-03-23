@@ -4,7 +4,7 @@ import lxml.etree as ET
 import regex as re
 import argparse
 from typing import *
-from file import BFS
+from Rimtrans_py.FileParser import BFS
 
 """
 Consider using ElephantTusk.tools.point.label instead of ElephantTusk.tools.1.label for translation '尖' (Items_Exotic.xml)

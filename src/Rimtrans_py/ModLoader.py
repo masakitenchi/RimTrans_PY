@@ -2,12 +2,12 @@ from json import load
 import lxml.etree as ET
 import os, platform, time, argparse, random
 from regex import F
-from file import BFS
+from FileParser import BFS
 from tkinter import NO, filedialog
 from ModLoadFolder import ModLoadFolder
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, Future
-from typing import *
+from typing import Optional, Literal
 
 __all__ = [
 	'ModContentPack',

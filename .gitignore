@@ -16,3 +16,6 @@ result.json
 
 # python vitrual environment
 .venv
+
+# user dependent files
+src/Rimtrans_py/test.json

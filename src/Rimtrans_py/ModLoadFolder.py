@@ -8,7 +8,7 @@ import unittest
 
 latest_stable_major_ver: tuple[int,int] = (1,4)
 
-major_versions: tuple[str] = ('1.0', '1.1', '1.2', '1.3', '1.4', '1.5', 'default')
+major_versions: tuple[str, ...] = ('1.0', '1.1', '1.2', '1.3', '1.4', '1.5', 'default')
 
 @dataclass
 class Loadfolders:
@@ -111,7 +111,7 @@ class ModLoadFolder:
                                                             IfModNotActives))
     def __call__(self, ver: str) -> list[Loadfolders]:
         """
-        Get the load folders for a specific RimWorld version
+        Get the load folders for a specific RimWorld version\n
         ModLoadFolder[ver] is also supported
 
         :param ver: RimWorld version, in major.minor format

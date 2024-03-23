@@ -1,21 +1,30 @@
 import lxml.etree as ET
 from ModLoadFolder import ModLoadFolder
-from ModLoader import load_mod_single, load_mods, get_modloadorder, load_mod, XmlInheritanceNode, ModContentPack
+from ModLoader import load_mod_single, load_mods, get_modloadorder, load_mod
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-import os, random
+import os, random, json, platform
 from tkinter import filedialog
-from Rimtrans_py.file import BFS
+from FileParser import BFS
 from XmlInheritanceResolver import XMLInheritance as XI
 
-
+@unittest.skipIf(platform.system() != 'Windows', 'Windows only at the moment')
+@unittest.skipIf(not os.path.exists(os.path.join(os.path.split(os.path.abspath(__file__))[0], 'test.json')), 'test.json not found')
 class Test(unittest.TestCase):
-	RimWorldFolder = r'D:\SteamLibrary\steamapps\common\RimWorld'
-	WorkshopFolder = r'D:\SteamLibrary\steamapps\workshop\content\294100'
 	def setUp(self) -> None:
-		appdata = os.getenv('APPDATA')
-		if appdata is not None:
-			self.ModsConfigPath = os.path.join(appdata, '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios/Config/ModsConfig.xml')
+		filedir = os.path.split(os.path.abspath(__file__))[0]
+		with open(os.path.join(filedir, 'test.json'), 'rb') as config_file:
+			config = json.load(config_file)
+			if 'RimWorldFolder' in config.keys():
+				self.RimWorldFolder = config['RimWorldFolder']
+			if 'WorkshopFolder' in config.keys():
+				self.WorkshopFolder = config['WorkshopFolder']
+			if platform.system() == 'Windows':
+				appdata = os.getenv('APPDATA')
+				if appdata is not None:
+					self.ModsConfigPath = os.path.join(appdata, '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios/Config/ModsConfig.xml')
+			else:
+				self.ModsConfigPath = filedialog.askopenfilename(title='Select ModsConfig.xml')
 		self.mods = load_mods(RimWorldFolder=self.RimWorldFolder, WorkshopFolder=self.WorkshopFolder)
 		self.modLoadOrder = get_modloadorder(self.ModsConfigPath)
 	def test_load_parallel(self) -> None:

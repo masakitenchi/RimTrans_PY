@@ -5,6 +5,7 @@ from tkinter import filedialog, messagebox
 import lxml.etree as ET
 from file import BFS, listdir_abspath
 import os
+from ModLoadFolder import ModLoadFolder
 
 class TranslationFileRenamer(Frame):
     def __init__(self, Tab: Widget):
@@ -43,9 +44,9 @@ class Patch_Extract_Tab(Frame):
     def __init__(self, Tab: Widget):
         super().__init__(Tab)
         self.cur_state = "SelectDir"
-        self.dirs = []
-        self.DirOptions = []
-        self.data_vars = []
+        self.dirs: list[str] = []
+        self.dirCheckButtons: list[Checkbutton] = []
+        self.dirSelected: list[BooleanVar] = []
         self.Tab = Tab
         self.ext_dir = StringVar(self.Tab, name="ext_dir1")
         self.ext_dir.trace_add('write', self.update)
@@ -90,21 +91,21 @@ class Patch_Extract_Tab(Frame):
         self.ext_dir_wrap.set(self.ext_dir.get())
         #self.canvas.grid_forget()
         self.dirs.clear()
-        self.data_vars.clear()
-        for button in self.DirOptions:
+        self.dirSelected.clear()
+        for button in self.dirCheckButtons:
             button.destroy()
         self.canvas.delete('all')
         self.Checkboxes = Frame(self.canvas)
         row = 1
         self.dirs.extend([f"{self.ext_dir.get()}/{f}" for f in os.listdir(self.ext_dir.get()) if os.path.isdir(f"{self.ext_dir.get()}/{f}") and not (f[0] == "." or f[0] == "_")])
-        self.data_vars.extend([IntVar(self.Tab, 0) for i in range(len(self.dirs))])
+        self.dirSelected.extend([IntVar(self.Tab, 0) for i in range(len(self.dirs))])
         for i in range(len(self.dirs)):
-            button = Checkbutton(self.Checkboxes, text=self.dirs[i], variable=self.data_vars[i], name=f"dir{i}", command=self.check_checkbox)
+            button = Checkbutton(self.Checkboxes, text=self.dirs[i], variable=self.dirSelected[i], name=f"dir{i}", command=self.check_checkbox)
             button.grid(row=i+row, column=0, sticky='we')
             button.update_idletasks()
             max_width = max(max_width, button.winfo_width())
             #print(button.winfo_reqwidth())
-            self.DirOptions.append(button)
+            self.dirCheckButtons.append(button)
             row += 1
         # update must be placed before actually drawing (e.g. with grid or pack) the widgets
         # I'm still confused by how this actually works
@@ -199,18 +200,12 @@ class Patch_Extract_Tab(Frame):
         self.Targets[2].grid(row=4, column=0, sticky='w')
         self.Targets[3].grid(row=4, column=1, sticky='w')
         Separator(configRect, orient=HORIZONTAL).grid(row=5, column=0, sticky='we', columnspan=2)
-        self.informationRect = Frame(outRect, width=outRect.winfo_width())
+        self.informationRect = Frame(outRect, width=outRect.winfo_width(), style='Blue.TFrame')
         self.informationRect.rowconfigure(0, weight=1)
         self.informationRect.columnconfigure(0, weight=1)
         self.informationRect.grid(row=1, column=0, sticky='nswe')
-        self.infoText = Text(self.informationRect, wrap=NONE, state='normal', width=self.informationRect.winfo_width())
-        self.infoTextscrbrX = Scrollbar(self.informationRect, orient=HORIZONTAL, command=self.infoText.xview)
-        self.infoTextscrbrY = Scrollbar(self.informationRect, orient=VERTICAL, command=self.infoText.yview)
-        self.infoText.configure(xscrollcommand=self.infoTextscrbrX.set, yscrollcommand=self.infoTextscrbrY.set)
-        self.infoText.insert(1.0, "This is a testSIDFOIDFJOIDJSFOISJDOFJSDOFONASODNAOSIDNAOSNONDSDSFSDFASDASD")
-        self.infoText.grid(row=0, column=0, sticky='wnse', padx=2, pady=2)
-        self.infoTextscrbrX.grid(row=1, column=0, sticky='we')
-        self.infoTextscrbrY.grid(row=0, column=1, sticky='ns')
+        self.versionCheckbuttons = []
+
     def Draw_Bottom(self, outRect: Widget, **kwargs):
         self.ExportButton = Button(outRect, text="Output Selected", command=self.do_extract, name="output", state='disabled')
         self.ExportButton.place(relx=0.5, rely=0.5, anchor=CENTER)
@@ -218,7 +213,7 @@ class Patch_Extract_Tab(Frame):
     def do_extract(self):
         self.Tab.columnconfigure(0, weight=6)
         self.Tab.columnconfigure(1, weight=4, minsize=300)
-        dirs = (dirname for i, dirname in enumerate(self.dirs) if self.data_vars[i].get())
+        dirs = (dirname for i, dirname in enumerate(self.dirs) if self.dirSelected[i].get())
         targets = set()
         if self.Defs.get(): targets.add('Def')
         if self.Patches.get(): targets.add('Patch')
@@ -303,14 +298,20 @@ class Patch_Extract_Tab(Frame):
         if self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery()) != self.Entry:
             self.Tab.focus_set()
     def check_checkbox(self, *args):
-        if any(f.get() for f in self.data_vars):
+        if any(f.get() for f in self.dirSelected):
             self.ExportButton.config(state='normal')
         else:
             self.ExportButton.config(state='disabled')
+        for mod in (self.dirs[i] for i, dir in enumerate(self.dirSelected) if dir.get()):
+            loadfolder = ModLoadFolder(mod).allSupportedVersions()
+            pass
     def update_dir(self, *args):
         self.ext_dir.set(self.ext_dir_wrap.get())
     def on_mousewheel(self, event):
         self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
+    def get_versions(self, *args):
+
+        pass
 
 
 class MainWindow(Tk):

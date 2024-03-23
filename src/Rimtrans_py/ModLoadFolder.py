@@ -35,6 +35,10 @@ class ModLoadFolder:
             # Which means loadfolders.xml doesn't have a <default>
             if len(self._loadfolders.keys()) == 0: # No version specific folders (loadfolders.xml doesn't even exist)
                 self._generatedefaultLoadFolders()
+                for ver in self._loadfolders.keys():
+                    if ver == 'default': continue
+                    for folder in self._loadfolders['default']:
+                        self._loadfolders[ver].append(folder)
             else:
                 try:
                     # Find the 'latest' version in loadfolders.xml

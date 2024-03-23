@@ -5,6 +5,7 @@ import unittest
 from tkinter import filedialog
 import TranslationExtractor as TE
 import random
+import XMLInheritance as XI
 
 
 
@@ -18,7 +19,11 @@ class _LoadTest(unittest.TestCase):
 		self.assertTrue(len(self.files).__gt__(0))
 	
 	def test_extract(self) -> None:
-		TE.extract(self.files, ('Def'))
+		print(TE.extract(self.files, ('Def')))
 		print(f'loaded {len(self.files)} files')
 
+	def test_extract_parse(self) -> None:
+		Defs, Patches, Languages = XI.load_mod(self.path, 'English', '1.4')
+		print(TE.extract_tree(Defs))
+		pass
 	

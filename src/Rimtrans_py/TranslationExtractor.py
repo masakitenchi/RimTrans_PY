@@ -3,7 +3,7 @@ import os.path
 import lxml.etree as ET
 import regex as re
 import argparse
-import typing
+from typing import *
 from file import BFS
 
 """
@@ -27,33 +27,86 @@ Patch_xpath = '//xpath[contains(text(),"label") or contains(text(),"description"
 #lxml seems doesn't support local-name()
 Anomaly_xpath = '//*[@Class="PatchOperationAdd"]/xpath[text()="Defs"]/../value/*[not(@Abstract) or (@Abstract!="True" and @Abstract!="true")]'
 
-def extract_sub(tree: ET._ElementTree, xpath: str, targets: list[str]) -> typing.Any:
+list_translatable = ['stages', 'lifeStages', 'tools', 'degreeDatas']
+
+class_name_as_key = ['comps']
+
+tag_translatable = ['label', 'labelNoun', 'description', 'jobString']
+
+parameter_regex = re.compile(r'\s?{\d}\s?')
+thought_degree_regex = re.compile(r'\s?\(\+(?<degree>\d)\)\s?')
+
+def extract_list(tree: ET._Element) -> list[str]:
     """
-    :param root: The parsed xml tree for extraction
-    :param xpath:
+    Given an element contains translatable list, return the list of all extracted keys
+    :param tree: the element containing the list
+    :return: list of keys
     """
-    nodes: list[ET._Element] = tree.xpath(xpath)
-    for node in nodes:
-        for subelement in node.iter():
-            if type(subelement) == ET._Element:
-                if subelement.tag != 'li':
-                    print(subelement.tag + ' ' + subelement.text if subelement.text is not None else '')
-                else:
-                    print('li ' + subelement.get('Class', ''))
+    if tree.tag not in list_translatable: return
+    keys = []
+    index = 0
+    for node in tree.iterchildren('li'):
+        if node.find('./label') is not None:
+            label = node.find('./label').text
+            if parameter_regex.search(label) is not None:
+                label = parameter_regex.sub('', label) # Remove all " {0} " from the label
+            if thought_degree_regex.search(label) is not None:
+                degree = thought_degree_regex.search(label)['degree']
+                label = thought_degree_regex.sub('', label) + f'_{degree}'
+            keys.append(build_key(node, 'label', label=label, index=index))
+            if node.find('./description') is not None:
+                keys.append(build_key(node, 'description', label=label, index=index))
+        index += 1
+    return keys
 
 
+def build_key(node: ET._Element, finalTag: str, *, label: Optional[str] = None, index: int) -> str:
+    key = node.find(f'./{finalTag}').text if label is None else label
+    if len(key.split(' ')) > 1: #Contains whitespace
+        key = key.replace(' ', '_')
+    parent = node
+    key_str = '.'.join([key, finalTag])
+    while True:
+        parent = parent.getparent()
+        key_str = '.'.join([parent.tag, key_str])
+        if parent.find('./defName') is not None:
+            key_str = key_str.replace(parent.tag, parent.find('./defName').text)
+            break
+    return key_str
 
-def extract(list_paths: list[str], target=('Def', 'Patch')) -> dict[str, dict[str, str]]:
+def extract_single(element: ET._Element) -> list:
+    """
+    :param element: element
+    :returns: a list of keys
+    """
+    keys = []
+    if element.get('Abstract') and element.get('Abstract').lower() == 'true' or element.find('./defName') is None:
+        return []
+    for node in element.iterchildren():
+        if node.tag in list_translatable:
+            keys.extend(extract_list(node))
+        elif node.tag in tag_translatable:
+            keys.append(f"{element.find('./defName').text}.{node.tag}")
+    return keys
+
+def extract_tree(tree: ET._ElementTree) -> list:
+    root = tree.getroot()
+    keys = []
+    for node in root.iterchildren():
+        keys.extend(extract_single(node))
+    return keys
+
+
+def extract(list_paths: list[str], target: set[Literal['Def', 'Patch']]) -> dict[str, dict[str, str]]:
     """
     总提取函数
     :param list_paths: 所有文件的绝对路径列表
     :param target: 提取目标，Def或Patch
-    :return: dict[defType: str, dict[defName: str, field: str]] 按defType分类的提取结果
+    :return: dict[defType: str, dict[defName: str, field: str]] Similar to DefDataBase<T>, where T is the outer key in this dict
     """
     pairs: dict[str, dict[str, str]] = dict()
     for file in list_paths:
         try:
-            count = 0
             if not os.path.isabs(file) or not os.path.isfile(file):
                 raise Exception(f"path {file} does not target a file or is not absolute")
             tree = ET.parse(file)
@@ -113,31 +166,6 @@ def extract(list_paths: list[str], target=('Def', 'Patch')) -> dict[str, dict[st
             continue
     return pairs
 
-
-def main(dirpath: str, recursive: bool = False) -> dict[str, ET._ElementTree]:
-    if not os.path.isdir(dirpath) or not os.path.isabs(dirpath):
-        raise Exception("Path is not a dir or absolute path")
-    trees = dict()
-    if recursive:
-        list_files = BFS(dirpath)
-    else:
-        list_files = [os.path.abspath(f) for f in os.listdir(dirpath) if f.endswith(".xml")]
-    # print(list_files)
-    pairs = extract(list_files)
-    # print(pairs)
-    # os.makedirs('extracted', exist_ok=True)
-    for defType, results in pairs.items():
-        # os.makedirs(f'extracted/{defType}', exist_ok=True)
-        root: ET._Element = ET.Element("LanguageData")
-        root.addprevious(ET.Comment("This file was generated by Patch_Extract.py"))
-        tree: ET._ElementTree = ET.ElementTree(root)
-        for key, value in results.items():
-            defName = ET.SubElement(root, key)
-            defName.text = value
-        trees[defType] = tree
-    return trees
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--folder", "-f", action="store", metavar="目标文件夹")
@@ -149,25 +177,3 @@ if __name__ == "__main__":
         path = os.path.abspath(result.folder)
     list_files = BFS(path, ['.xml'])
     print(list_files)
-    for file in list_files:
-        root = ET.parse(file).getroot()
-        if root.tag == 'Defs':
-            extract_sub(ET.parse(file), Defs_xpath.path, ['label', 'description'])
-    pairs = extract(list_files)
-    print(pairs)
-    if not result.dry_run:
-        os.makedirs("extracted", exist_ok=True)
-        for defType, results in pairs.items():
-            os.makedirs(f"extracted/{defType}", exist_ok=True)
-            root: ET._Element = ET.Element("LanguageData")
-            root.addprevious(ET.Comment("This file was generated by Patch_Extract.py"))
-            tree: ET._ElementTree = ET.ElementTree(root)
-            for key, value in results.items():
-                defName = ET.SubElement(root, key)
-                defName.text = value
-            tree.write(
-                f"extracted/{defType}/ExtractedPatch.xml",
-                pretty_print=True,
-                xml_declaration=True,
-                encoding="utf-8",
-            )

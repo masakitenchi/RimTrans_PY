@@ -1,16 +1,11 @@
-import unittest
 import lxml.etree as ET
-import os
+import os, platform, time, argparse, random
 from file import BFS
 from tkinter import NO, filedialog
-import platform
 from ModLoadFolder import ModLoadFolder
-import typing
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, Future
-import time
-import argparse
-import random
+from typing import *
 
 
 @dataclass
@@ -94,13 +89,13 @@ def load_xmls_sub(paths: list[str], rootTag: str) -> ET._ElementTree:
 			continue
 	return tree
 
-def load_mod(path:str, language: str = '', version: str = '1.4', executor: ThreadPoolExecutor = None) -> tuple[ET._ElementTree, ET._ElementTree, ET._ElementTree]:
+def load_mod(path:str, language: str = '', version: str = '1.4', executor: Optional[ThreadPoolExecutor] = None) -> tuple[ET._ElementTree, ET._ElementTree, ET._ElementTree]:
 	"""
-	Given a path to a mod's folder, load all XMLs in loadfolders/(Defs, Patches, [Languages])
+	Given a path to a mod's folder, \nload all XMLs in loadfolders/(Defs, Patches, [Languages]), combine them into different ElementTrees
 	:param path: path to the mod's folder
 	:param language: language to load, leave it None to skip loading
 	:param executor: ThreadPoolExecutor to use, leave it None to use single thread
-	:return: a tuple of ET._ElementTrees containing XML tree of Defs, Patches, and Languages
+	:return: a tuple of ET._ElementTree containing XML tree of Defs, Patches, and Languages
 	"""
 	modLoader = ModLoadFolder(path)
 	result: list[ET._ElementTree] = [ET.ElementTree(ET.Element('Defs')), ET.ElementTree(ET.Element('Patches')), ET.ElementTree(ET.Element('LanguageData'))]

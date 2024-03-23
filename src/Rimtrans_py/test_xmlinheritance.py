@@ -1,11 +1,9 @@
-from operator import index
 import lxml.etree as ET
-from Rimtrans_py import file
-from XMLInheritance import load_mod_single, load_mods, get_modloadorder, load_mod, XmlInheritanceNode, load_mods_sub
+from XMLInheritance import load_mod_single, load_mods, get_modloadorder, load_mod, XmlInheritanceNode, ModContentPack
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-import os, random, copy
-from tkinter import N, filedialog
+import os, random
+from tkinter import filedialog
 from typing import *
 
 
@@ -54,27 +52,7 @@ class _LoadTest(unittest.TestCase):
 		print(f'path = "{mod.path}"')
 		Defs, Patches, Languages = load_mod(mod, 'ChineseSimplified', '1.4')
 		print(f'Loaded {len(list(Defs.getroot()))} nodes')
-		for node in list(Defs.getroot()):
-			attr_name = node.get('Name')
-			attr_parentname = node.get('ParentName')
-			if attr_name is None and attr_parentname is None: continue
-			if attr_name is not None and self.nodesByName.get(attr_name) is not None:
-				for possible_duplicate in self.nodesByName[attr_name]:
-					if possible_duplicate.mod == mod:
-						if mod is None:
-							print(f'Error: node with Name = {attr_name} already exists')
-							continue
-						print(f'Error: node with Name = {attr_name} already exists in mod {mod.path}')
-						continue
-			
-			self.unresolvedNodes.append(XmlInheritanceNode(node, mod))
-
-			if attr_name is not None:
-				if self.nodesByName.get(attr_name) is not None:
-					self.nodesByName[attr_name].append(self.unresolvedNodes[-1])
-					continue
-				self.nodesByName[attr_name] = []
-				self.nodesByName[attr_name].append(self.unresolvedNodes[-1])
+		self.try_register_all_from(Defs, mod)
 		self.resolve_parents_and_children()
 		self.resolve_nodes()
 		print(f'Resolved {len(self.resolvedNodes)} nodes')
@@ -85,10 +63,37 @@ class _LoadTest(unittest.TestCase):
 		Defs.write(os.path.join(mod.path, '..', 'Def_Origin.xml'), encoding='utf-8', xml_declaration=True)
 		tree.write(os.path.join(mod.path, '..', 'Def_Unified.xml'), encoding='utf-8', xml_declaration=True)
 		
+	def try_register_all_from(self, tree: ET._ElementTree, mod: ModContentPack) -> None:
+		for node in list(tree.getroot()):
+			self.try_register(node, mod)
 
+	def try_register(self, node: ET._Element, mod: ModContentPack) -> None:
+		attr_name = node.get('Name')
+		attr_parentname = node.get('ParentName')
+		if attr_name is None and attr_parentname is None: return
+		if attr_name is not None and self.nodesByName.get(attr_name) is not None:
+			for possible_duplicate in self.nodesByName[attr_name]:
+				if possible_duplicate.mod == mod:
+					if mod is None:
+						print(f'Error: node with Name = {attr_name} already exists')
+						continue
+					print(f'Error: node with Name = {attr_name} already exists in mod {mod.path}')
+					continue
+		
+		XInode = XmlInheritanceNode(node, mod)
+		self.unresolvedNodes.append(XInode)
 
-	def resolve_nodes(self):
-		for node in filter(lambda x: x.parent is None or x.parent.ResolvedXmlNode is not None, self.unresolvedNodes):
+		if attr_name is not None:
+			if self.nodesByName.get(attr_name) is not None:
+				self.nodesByName[attr_name].append(XInode)
+				return
+			self.nodesByName[attr_name] = []
+			self.nodesByName[attr_name].append(XInode)
+
+	def resolve_nodes(self) -> None:
+		for node in list(filter(
+			lambda x: x.parent is None or x.parent.ResolvedXmlNode is not None, 
+			self.unresolvedNodes)): # Must not be an enmuerator
 			self.resolve_nodes_recursive(node)
 		for node in self.unresolvedNodes:
 			if node.ResolvedXmlNode is None:
@@ -129,7 +134,7 @@ class _LoadTest(unittest.TestCase):
 			parent = cur.parent
 			while parent is not None:
 				p_label = parent.ResolvedXmlNode.find('label')
-				if p_label is not None:
+				if p_label is not None and p_label.text is not None:
 					print(f'Message: {node.XmlNode.find("defName").text if node.XmlNode.find("defName") is not None else node.XmlNode.tag} label resolved to "{p_label.text}"')
 					label.text = p_label.text
 					break
@@ -144,8 +149,8 @@ class _LoadTest(unittest.TestCase):
 			while parent is not None:
 				parent = cur.parent
 				p_description = parent.ResolvedXmlNode.find('description')
-				if p_description is not None:
-					print(f'Message: {node.XmlNode.find("defName").text if node.XmlNode.find("defName") is not None else node.XmlNode.tag} label resolved to {p_description.text}')
+				if p_description is not None and p_description.text is not None:
+					print(f'Message: {node.XmlNode.find("defName").text if node.XmlNode.find("defName") is not None else node.XmlNode.tag} description resolved to {p_description.text}')
 					description.text = p_description.text
 					break
 				cur = parent
@@ -165,12 +170,13 @@ class _LoadTest(unittest.TestCase):
 				self.check_duplicate_nodes(subnode, root)
 
 
-	def resolve_parents_and_children(self):
+	def resolve_parents_and_children(self) -> None:
 		for node in self.unresolvedNodes:
 			if node.XmlNode.get('ParentName') is not None:
 				node.parent = self.get_best_parent_for(node, node.XmlNode.get('ParentName'))
 				if node.parent is not None:
 					node.parent.children.append(node)
+		return
 
 	@staticmethod
 	def try_add(set: set, value: Any) -> bool:

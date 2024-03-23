@@ -35,7 +35,7 @@ class XmlInheritanceNode:
 	mod: ModContentPack
 	ResolvedXmlNode: ET._Element = None
 	parent: "XmlInheritanceNode" = None
-	childrens: list[ET._Element] = field(default_factory=list)
+	children: list[ET._Element] = field(default_factory=list)
 
 	def is_abstract(self) -> bool:
 		return self.XmlNode.get('Abstract').lower() == 'True'

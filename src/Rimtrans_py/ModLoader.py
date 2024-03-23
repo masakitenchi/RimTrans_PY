@@ -1,7 +1,6 @@
 from json import load
 import lxml.etree as ET
 import os, platform, time, argparse, random
-
 from regex import F
 from file import BFS
 from tkinter import NO, filedialog
@@ -10,6 +9,17 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import *
 
+__all__ = [
+	'ModContentPack',
+	'XmlInheritanceNode',
+	'load_xmls',
+	'load_xmls_sub',
+	'load_mod',
+	'get_modloadorder',
+	'load_mods',
+	'load_mods_sub',
+	'load_mod_single',
+	]
 
 @dataclass
 class ModContentPack:
@@ -25,10 +35,6 @@ class ModContentPack:
 		self.loadfolders = ModLoadFolder(path)
 		self.supportedversions = self.loadfolders.allSupportedVersions()
 		self.modDependencies = []
-	
-
-
-
 @dataclass
 class XmlInheritanceNode:
 	XmlNode: ET._Element
@@ -39,29 +45,9 @@ class XmlInheritanceNode:
 
 	def is_abstract(self) -> bool:
 		return self.XmlNode.get('Abstract').lower() == 'True'
-
-
 RimWorldId = 294100
-WorkshopFolder: str = ""
-RimWorldFolder: str = ""
 
-modLoadOrder: list[str] = []
 
-DefsByDefType: dict[str, dict[str, ET._Element]] = {}
-"""
-Key为DefType，Value为defName:ET._Element的字典
-"""
-ElementsByAttrName: dict[str, list[ET._Element]] = {}
-"""
-key是Name属性，value是拥有该Name属性的节点的列表
-"""
-expansion_dir = ['Core', 'Royalty', 'Ideology', 'Biotech']
-
-unresolvedNodes: dict[str, XmlInheritanceNode] = {}
-"""
-defName:XmlInheritanceNode
-"""
-resolvedNodes: set[XmlInheritanceNode] = set()
 
 
 
@@ -69,6 +55,7 @@ resolvedNodes: set[XmlInheritanceNode] = set()
 def split_list(l: list, n: int) -> list[list]:
 	k, m = divmod(len(l), n)
 	return [l[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
+
 def Combine(rootTag: str, *args: ET._ElementTree) -> ET._ElementTree:
 	root: ET._Element = ET.Element(rootTag)
 	tree = ET.ElementTree(root)
@@ -78,8 +65,8 @@ def Combine(rootTag: str, *args: ET._ElementTree) -> ET._ElementTree:
 		for node in iter(troot):
 			root.append(node)
 	return tree
+
 def load_xmls(path: str, rootTag: str, executor: ThreadPoolExecutor = None) -> ET._ElementTree:
-	
 	files = BFS(path, ['.xml'])
 	if len(files) == 0: return ET.ElementTree(ET.Element(rootTag))
 	if executor is None:
@@ -130,7 +117,6 @@ def load_mod(mod: ModContentPack, language: str = '', version: str = '1.4', exec
 				continue
 	return tuple(result)
 
-
 def get_modloadorder(path: str) -> list[str]:
 	modLoadOrder = []
 	if path is None:
@@ -171,54 +157,3 @@ def load_mod_single(path: str, idPostfix: Optional[Literal['_steam']] = None) ->
 		return ModContentPack(path, packageId)
 	print(f'Warning: "{os.path.join(path, "About", "About.xml")}" not found')
 	return ModContentPack(path, '')
-
-def main(parallel: bool = False, activeLanguage: str = 'ChineseSimplified') -> None:
-	global RimWorldFolder, WorkshopFolder, DefsByDefType, ElementsByAttrName
-	RimWorldFolder = filedialog.askdirectory(title='Choose your RimWorld folder')
-	WorkshopFolder = os.path.normpath(os.path.join(RimWorldFolder, f'../../workshop/content/{RimWorldId}'))
-	if not os.path.exists(RimWorldFolder):
-		print('RimWorld folder not found')
-		return
-	mods = load_mods(RimWorldFolder=RimWorldFolder, WorkshopFolder=WorkshopFolder)
-	if platform.system() == 'Windows':
-		if os.path.exists(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml'))):
-			print('Using default ModsConfig.xml?(Y/N)')
-			if input().lower() == 'y':
-				modLoadOrder = get_modloadorder(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml')))
-			else:
-				filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-				modLoadOrder = get_modloadorder(filepath)
-		else:
-			filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-			modLoadOrder = get_modloadorder(filepath)
-	else:
-		#TODO: Linux and MacOS
-		filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-		modLoadOrder = get_modloadorder(filepath)
-	if parallel:
-		ttstart = time.time()
-		for mod in modLoadOrder:
-			if mod in mods.keys():
-				with ThreadPoolExecutor(max_workers=os.cpu_count() // 3) as executor:
-					load_mod(mods[mod], activeLanguage, executor=executor)
-		ttend = time.time()
-		print(f'Loaded all mods in {(ttend - ttstart) * 1000:.2f} ms (parallel)')
-	else:
-		ttstart = time.time()
-		for mod in modLoadOrder:
-			if mod in mods.keys():
-				load_mod(mods[mod], activeLanguage)
-		ttend = time.time()
-		print(f'Loaded all mods in {(ttend - ttstart) * 1000:.2f} ms (nonparallel)')
-
-
-
-
-if __name__ == "__main__":
-	parser = argparse.ArgumentParser(description='Load mods and parse XMLs')
-	parser.add_argument('--parallel', action='store_true', help='Use parallel loading')
-	args = parser.parse_args()
-	if args.parallel:
-		main(True)
-	else:
-		main()

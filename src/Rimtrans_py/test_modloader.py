@@ -1,5 +1,5 @@
 import lxml.etree as ET
-from XMLInheritance import load_mod_single, load_mods, get_modloadorder, load_mod, XmlInheritanceNode, ModContentPack
+from Rimtrans_py.ModLoader import load_mod_single, load_mods, get_modloadorder, load_mod, XmlInheritanceNode, ModContentPack
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 import os, random
@@ -156,8 +156,6 @@ class _LoadTest(unittest.TestCase):
 				cur = parent
 				parent = parent.parent
 		node.ResolvedXmlNode = node.XmlNode
-
-	
 
 	def check_duplicate_nodes(self, node: ET._Element, root: ET._Element) -> None:
 		self.usedNames = set()

@@ -100,8 +100,9 @@ def load_xmls_sub(paths: list[str], rootTag: str) -> ET._ElementTree:
 			froot: ET._Element = f.getroot()
 			if froot.tag != rootTag:
 				raise ValueError(f'root node is {froot.tag}, expected {rootTag}')
-			for node in filter(lambda x: type(x) is ET._Element, froot):
-				node.set('Path', path)
+			for node in froot:
+				if type(node) is ET._Element:
+					node.set('Path', path)
 				root.append(node)
 		except Exception as e:
 			print(f'Error when parsing file {path} : {e}')
@@ -110,7 +111,7 @@ def load_xmls_sub(paths: list[str], rootTag: str) -> ET._ElementTree:
 
 def load_mod(mod: ModContentPack, language: str = '', version: str = '1.4', executor: Optional[ThreadPoolExecutor] = None) -> tuple[ET._ElementTree, ET._ElementTree, ET._ElementTree]:
 	"""
-	Given a path to a mod's folder, \nload all XMLs in loadfolders/(Defs, Patches, [Languages]), combine them into different ElementTrees
+	Given a path to a mod's folder, \nload all XMLs in loadfolders/(Defs, Patches, [Languages]), combine them into 3 ElementTrees
 	:param path: path to the mod's folder
 	:param language: language to load, leave it None to skip loading
 	:param executor: ThreadPoolExecutor to use, leave it None to use single thread

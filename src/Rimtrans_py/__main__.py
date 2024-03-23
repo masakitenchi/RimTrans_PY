@@ -98,7 +98,7 @@ class Patch_Extract_Tab(Frame):
         self.Checkboxes = Frame(self.canvas)
         row = 1
         self.dirs.extend([f"{self.ext_dir.get()}/{f}" for f in os.listdir(self.ext_dir.get()) if os.path.isdir(f"{self.ext_dir.get()}/{f}") and not (f[0] == "." or f[0] == "_")])
-        self.dirSelected.extend([IntVar(self.Tab, 0) for i in range(len(self.dirs))])
+        self.dirSelected.extend([BooleanVar(self.Tab, False) for i in range(len(self.dirs))])
         for i in range(len(self.dirs)):
             button = Checkbutton(self.Checkboxes, text=self.dirs[i], variable=self.dirSelected[i], name=f"dir{i}", command=self.check_checkbox)
             button.grid(row=i+row, column=0, sticky='we')
@@ -170,8 +170,8 @@ class Patch_Extract_Tab(Frame):
         )
         self.Defs = BooleanVar(self.Tab, False)
         self.Patches = BooleanVar(self.Tab, True)
-        outRect.rowconfigure(0, weight=1)
-        outRect.rowconfigure(1, weight=9)
+        outRect.rowconfigure(0, weight=2)
+        outRect.rowconfigure(1, weight=8)
         outRect.columnconfigure(0, weight=1)
         self.TargetGrid = Labelframe(outRect, text="Configs")
         self.TargetGrid.rowconfigure(0, weight=1)
@@ -199,20 +199,17 @@ class Patch_Extract_Tab(Frame):
         self.Targets[1].grid(row=3, column=1, sticky='w')
         self.Targets[2].grid(row=4, column=0, sticky='w')
         self.Targets[3].grid(row=4, column=1, sticky='w')
-        Separator(configRect, orient=HORIZONTAL).grid(row=5, column=0, sticky='we', columnspan=2)
-        self.informationRect = Frame(outRect, width=outRect.winfo_width(), style='Blue.TFrame')
+        #Separator(configRect, orient=HORIZONTAL).grid(row=5, column=0, sticky='we', columnspan=2)
+        """ self.informationRect = Frame(outRect, width=outRect.winfo_width(), style='Blue.TFrame')
         self.informationRect.rowconfigure(0, weight=1)
         self.informationRect.columnconfigure(0, weight=1)
-        self.informationRect.grid(row=1, column=0, sticky='nswe')
-        self.versionCheckbuttons = []
+        self.informationRect.grid(row=1, column=0, sticky='nswe') """
 
-    def Draw_Bottom(self, outRect: Widget, **kwargs):
+    def Draw_Bottom(self, outRect: Widget, **kwargs) -> None:
         self.ExportButton = Button(outRect, text="Output Selected", command=self.do_extract, name="output", state='disabled')
         self.ExportButton.place(relx=0.5, rely=0.5, anchor=CENTER)
         pass
-    def do_extract(self):
-        self.Tab.columnconfigure(0, weight=6)
-        self.Tab.columnconfigure(1, weight=4, minsize=300)
+    def do_extract(self) -> None:
         dirs = (dirname for i, dirname in enumerate(self.dirs) if self.dirSelected[i].get())
         targets = set()
         if self.Defs.get(): targets.add('Def')
@@ -220,10 +217,11 @@ class Patch_Extract_Tab(Frame):
         recursive = self.recursive.get()
         split = self.split.get()
         append = self.append.get()
+        language = "ChineseSimplified"
         Total_dir = filedialog.askdirectory(mustexist=True, title="保存到……")
         for dir in dirs:
             mod_name = os.path.basename(dir)
-            output_dir = f"{Total_dir}/{mod_name}/Languages/ChineseSimplified/DefInjected"
+            output_dir = f"{Total_dir}/{mod_name}/Languages/{language}"
             os.makedirs(output_dir, exist_ok=True)
             files = []
             for file in (BFS(dir, ["xml"]) if recursive else listdir_abspath(dir, ["xml"])):
@@ -267,7 +265,6 @@ class Patch_Extract_Tab(Frame):
                                 output_path = f"{output_dir}/{defType}/Patches/{file_name}"
                             else:
                                 output_path = f"{output_dir}/{defType}/{file_name}"
-                            self.infoText.insert(END, f"Writing to {output_path}\n")
                             tree.write(
                                 output_path,
                                 pretty_print=True,
@@ -294,10 +291,10 @@ class Patch_Extract_Tab(Frame):
                     self.infoText.insert(END, f"Writing to {output_path}\n")
                     etree.write(output_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
         messagebox.showinfo("Done", "Extraction complete!")
-    def check_direntry(self, *args):
+    def check_direntry(self, *args) -> None:
         if self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery()) != self.Entry:
             self.Tab.focus_set()
-    def check_checkbox(self, *args):
+    def check_checkbox(self, *args) -> None:
         if any(f.get() for f in self.dirSelected):
             self.ExportButton.config(state='normal')
         else:
@@ -305,17 +302,17 @@ class Patch_Extract_Tab(Frame):
         for mod in (self.dirs[i] for i, dir in enumerate(self.dirSelected) if dir.get()):
             loadfolder = ModLoadFolder(mod).allSupportedVersions()
             pass
-    def update_dir(self, *args):
+    def update_dir(self, *args) -> None:
         self.ext_dir.set(self.ext_dir_wrap.get())
-    def on_mousewheel(self, event):
+    def on_mousewheel(self, event) -> None:
         self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
-    def get_versions(self, *args):
+    def get_versions(self, *args) -> None:
 
         pass
 
 
 class MainWindow(Tk):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         Style().configure("Red.TFrame", background="red")
         Style().configure("Blue.TFrame", background="blue")

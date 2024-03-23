@@ -1,15 +1,17 @@
 import os
 import os.path as OP
+from typing import Optional
 
 
-def BFS(root: str, format: list[str]) -> list[str]:
+def BFS(root: str, format: Optional[list[str]]) -> list[str]:
 	"""给定根目录，递归查找所有格式存在于format内的文件
 
 	:param root: 根目录
 	:param format: 文件格式，为None时返回所有文件
 	:return: 所有文件的绝对路径
 	"""
-	format = [f.removeprefix('.') for f in format]
+	if format is not None:
+		format = [f.removeprefix('.') for f in format]
 	result = []
 	for cur, dirs, files in os.walk(root):
 		#print(files)

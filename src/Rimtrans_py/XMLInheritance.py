@@ -1,5 +1,8 @@
+from json import load
 import lxml.etree as ET
 import os, platform, time, argparse, random
+
+from regex import F
 from file import BFS
 from tkinter import NO, filedialog
 from ModLoadFolder import ModLoadFolder
@@ -12,17 +15,31 @@ from typing import *
 class ModContentPack:
 	path: str
 	packageId: str
-	supportedversions: list[str] = field(default_factory=list)
-	modDependencies: list[str] = field(default_factory=list)
+	"""no _steam postfix"""
+	loadfolders: ModLoadFolder
+	supportedversions: list[str]
+	modDependencies: list[str]
+	def __init__(self, path: str, packageId: str) -> None:
+		self.path = path
+		self.packageId = packageId
+		self.loadfolders = ModLoadFolder(path)
+		self.supportedversions = self.loadfolders.allSupportedVersions()
+		self.modDependencies = []
+	
+
 
 
 @dataclass
 class XmlInheritanceNode:
 	XmlNode: ET._Element
-	ResolvedXmlNode: ET._Element
 	mod: ModContentPack
-	parent: ET._Element
+	ResolvedXmlNode: ET._Element = None
+	parent: "XmlInheritanceNode" = None
 	childrens: list[ET._Element] = field(default_factory=list)
+
+	def is_abstract(self) -> bool:
+		return self.XmlNode.get('Abstract').lower() == 'True'
+
 
 RimWorldId = 294100
 WorkshopFolder: str = ""
@@ -45,6 +62,8 @@ unresolvedNodes: dict[str, XmlInheritanceNode] = {}
 defName:XmlInheritanceNode
 """
 resolvedNodes: set[XmlInheritanceNode] = set()
+
+
 
 
 def split_list(l: list, n: int) -> list[list]:
@@ -89,7 +108,7 @@ def load_xmls_sub(paths: list[str], rootTag: str) -> ET._ElementTree:
 			continue
 	return tree
 
-def load_mod(path:str, language: str = '', version: str = '1.4', executor: Optional[ThreadPoolExecutor] = None) -> tuple[ET._ElementTree, ET._ElementTree, ET._ElementTree]:
+def load_mod(mod: ModContentPack, language: str = '', version: str = '1.4', executor: Optional[ThreadPoolExecutor] = None) -> tuple[ET._ElementTree, ET._ElementTree, ET._ElementTree]:
 	"""
 	Given a path to a mod's folder, \nload all XMLs in loadfolders/(Defs, Patches, [Languages]), combine them into different ElementTrees
 	:param path: path to the mod's folder
@@ -97,7 +116,7 @@ def load_mod(path:str, language: str = '', version: str = '1.4', executor: Optio
 	:param executor: ThreadPoolExecutor to use, leave it None to use single thread
 	:return: a tuple of ET._ElementTree containing XML tree of Defs, Patches, and Languages
 	"""
-	modLoader = ModLoadFolder(path)
+	modLoader = ModLoadFolder(mod.path)
 	result: list[ET._ElementTree] = [ET.ElementTree(ET.Element('Defs')), ET.ElementTree(ET.Element('Patches')), ET.ElementTree(ET.Element('LanguageData'))]
 	for folder in modLoader[version]:
 		result[0] = Combine('Defs', *(result[0], load_xmls(os.path.join(folder.path, 'Defs'), 'Defs', executor=executor)))
@@ -111,7 +130,7 @@ def load_mod(path:str, language: str = '', version: str = '1.4', executor: Optio
 	return tuple(result)
 
 
-def _modloadorder(path: str) -> list[str]:
+def get_modloadorder(path: str) -> list[str]:
 	modLoadOrder = []
 	if path is None:
 		path = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
@@ -121,49 +140,36 @@ def _modloadorder(path: str) -> list[str]:
 		modLoadOrder.append(mod.text)
 	return modLoadOrder
 
-def _get_mods(**kwargs) -> dict[str, str]:
+def load_mods(RimWorldFolder: str, WorkshopFolder: str) -> dict[str, ModContentPack]:
 	mods = {}
-	RimWorldFolder = kwargs.get('RimWorldFolder')
-	WorkshopFolder = kwargs.get('WorkshopFolder')
-	for cur, dirs, _ in os.walk(os.path.join(RimWorldFolder, 'Mods')):
-		# Local mods
-		for dir in dirs:
-			if os.path.exists(os.path.join(cur, dir, 'About', 'About.xml')):
-				tree: ET._ElementTree = ET.parse(os.path.join(cur, dir, 'About', 'About.xml'))
-				root: ET._Element = tree.getroot()
-				if root.find('packageId') is None: 
-					print(f'Warning: "{os.path.join(cur, dir, "About", "About.xml")}" has no packageId')
-					continue
-				packageId: str = root.find('packageId').text.lower()
-				mods[packageId] = os.path.join(cur, dir)
-		break
-		
-	for cur, dirs, _ in os.walk(WorkshopFolder):
-		# Workshop mods
-		for dir in dirs:
-			if os.path.exists(os.path.join(cur, dir, 'About', 'About.xml')):
-				tree: ET._ElementTree = ET.parse(os.path.join(cur, dir, 'About', 'About.xml'))
-				root: ET._Element = tree.getroot()
-				if root.find('packageId') is None: 
-					print(f'Error: {os.path.join(cur, dir, "About", "About.xml")} has no packageId')
-					continue
-				packageId: str = (root.find('packageId').text + '_steam').lower()
-				mods[packageId] = os.path.join(cur, dir)
-		break
-				
-	for cur, dirs, _ in os.walk(os.path.join(RimWorldFolder, 'Data')):
-		# Vanilla
-		for dir in dirs:
-			if os.path.exists(os.path.join(cur, dir, 'About', 'About.xml')):
-				tree: ET._ElementTree = ET.parse(os.path.join(cur, dir, 'About', 'About.xml'))
-				root: ET._Element = tree.getroot()
-				if root.find('packageId') is None: 
-					print(f'Error: {os.path.join(cur, dir, "About", "About.xml")} has no packageId')
-					continue
-				packageId : str = root.find('packageId').text.lower()
-				mods[packageId] = os.path.join(cur, dir)
-		break
+	if RimWorldFolder is None or WorkshopFolder is None: return dict()
+	mods.update(load_mods_sub(os.path.join(RimWorldFolder, 'Data')))
+	mods.update(load_mods_sub(os.path.join(RimWorldFolder, 'Mods')))
+	mods.update(load_mods_sub(WorkshopFolder, '_steam'))
 	return mods
+
+def load_mods_sub(path: str, idPostfix: Optional[Literal['_steam']] = None) -> dict[str, ModContentPack]:
+	mods = {}
+	for entry in filter(lambda x: x.is_dir(), os.scandir(path)):
+		mod = load_mod_single(entry.path, idPostfix)
+		if mod.packageId != '':
+			mods[mod.packageId] = mod
+		else:
+			print(f'Warning: mod in "{entry.path}" has no packageId')
+	return mods
+
+def load_mod_single(path: str, idPostfix: Optional[Literal['_steam']] = None) -> ModContentPack:
+	if os.path.exists(os.path.join(path, 'About', 'About.xml')):
+		tree: ET._ElementTree = ET.parse(os.path.join(path, 'About', 'About.xml'))
+		root: ET._Element = tree.getroot()
+		if root.find('packageId') is None: 
+			print(f'Warning: "{os.path.join(path, "About", "About.xml")}" has no packageId')
+			return ModContentPack(path, '')
+		packageId = root.find('packageId').text.lower()
+		if idPostfix is not None: packageId += idPostfix
+		return ModContentPack(path, packageId)
+	print(f'Warning: "{os.path.join(path, "About", "About.xml")}" not found')
+	return ModContentPack(path, '')
 
 def main(parallel: bool = False, activeLanguage: str = 'ChineseSimplified') -> None:
 	global RimWorldFolder, WorkshopFolder, DefsByDefType, ElementsByAttrName
@@ -172,22 +178,22 @@ def main(parallel: bool = False, activeLanguage: str = 'ChineseSimplified') -> N
 	if not os.path.exists(RimWorldFolder):
 		print('RimWorld folder not found')
 		return
-	mods = _get_mods(RimWorldFolder=RimWorldFolder, WorkshopFolder=WorkshopFolder)
+	mods = load_mods(RimWorldFolder=RimWorldFolder, WorkshopFolder=WorkshopFolder)
 	if platform.system() == 'Windows':
 		if os.path.exists(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml'))):
 			print('Using default ModsConfig.xml?(Y/N)')
 			if input().lower() == 'y':
-				modLoadOrder = _modloadorder(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml')))
+				modLoadOrder = get_modloadorder(os.path.normpath(os.path.join(os.getenv('APPDATA'), '../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios', 'Config', 'ModsConfig.xml')))
 			else:
 				filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-				modLoadOrder = _modloadorder(filepath)
+				modLoadOrder = get_modloadorder(filepath)
 		else:
 			filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-			modLoadOrder = _modloadorder(filepath)
+			modLoadOrder = get_modloadorder(filepath)
 	else:
 		#TODO: Linux and MacOS
 		filepath = filedialog.askopenfilename(title='Choose you ModsConfig.xml', filetypes=[('XML files', '*.xml')])
-		modLoadOrder = _modloadorder(filepath)
+		modLoadOrder = get_modloadorder(filepath)
 	if parallel:
 		ttstart = time.time()
 		for mod in modLoadOrder:

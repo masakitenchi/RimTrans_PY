@@ -78,11 +78,11 @@ def load_xmls_sub(paths: list[str], rootTag: str) -> ET._ElementTree:
 	for path in paths:
 		try:
 			f: ET._ElementTree = ET.parse(path)
-			f: ET._ElementTree
 			froot: ET._Element = f.getroot()
 			if froot.tag != rootTag:
 				raise ValueError(f'root node is {froot.tag}, expected {rootTag}')
 			for node in filter(lambda x: type(x) is ET._Element, froot):
+				node.set('Path', path)
 				root.append(node)
 		except Exception as e:
 			print(f'Error when parsing file {path} : {e}')

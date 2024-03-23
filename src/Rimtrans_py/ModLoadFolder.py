@@ -127,7 +127,7 @@ class ModLoadFolder:
         """
         Get all supported RimWorld versions
         """
-        return list(self._loadfolders.keys())
+        return list(f for f in self._loadfolders.keys() if f != 'default')
 
 
 

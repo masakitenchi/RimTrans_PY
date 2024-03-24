@@ -2,10 +2,10 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Python 调试程序: 当前文件",
+			"name": "GUI",
 			"type": "debugpy",
 			"request": "launch",
-			"program": "${file}",
+			"program": "./src/Rimtrans_py/__main__.py",
 			"console": "integratedTerminal"
 		}
 	]

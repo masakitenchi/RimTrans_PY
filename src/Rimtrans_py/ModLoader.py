@@ -39,7 +39,7 @@ class XmlInheritanceNode:
         return self.XmlNode.get("Abstract").lower() == "True"
 
 
-RimWorldId = 294100
+RimWorldId = '294100'
 
 
 def split_list(l: list, n: int) -> list[list]:
@@ -101,7 +101,7 @@ def load_mod(
 ) -> tuple[ET._ElementTree, ET._ElementTree, ET._ElementTree]:
     """
     Given a path to a mod's folder, \nload all XMLs in loadfolders/(Defs, Patches, [Languages]), combine them into 3 ElementTrees
-    :param path: path to the mod's folder
+    :param mod: path to the mod's folder, or an instance of ModContentPack
     :param language: language to load, leave it None to skip loading
     :param executor: ThreadPoolExecutor to use, leave it None to use single thread
     :return: a tuple of ET._ElementTree containing XML tree of Defs, Patches, and Languages
@@ -158,7 +158,7 @@ def load_mod(
     return tuple(result)
 
 
-def get_modloadorder(path: str) -> list[str]:
+def get_modloadorder(path: Optional[str] = None) -> list[str]:
     modLoadOrder = []
     if path is None:
         path = filedialog.askopenfilename(
@@ -172,25 +172,30 @@ def get_modloadorder(path: str) -> list[str]:
 
 
 @overload
-def load_mods(paths: list[str]) -> dict[str, ModContentPack]: ...
+def generate_mod_dict(paths: list[str]) -> dict[str, ModContentPack]: ...
 @overload
-def load_mods(
+def generate_mod_dict(
     path_postfix: dict[str, Optional[Literal["_steam"]]]
 ) -> dict[str, ModContentPack]: ...
-def load_mods(paths) -> dict[str, ModContentPack]:
+def generate_mod_dict(paths) -> dict[str, ModContentPack]:
+    """
+    Given a list of paths, return a dict of packageId: ModContentPack
+    :param paths: a list of paths, or a dict of path: idPostfix
+    :return: a dict of packageId: ModContentPack
+    """
     mods = {}
     args = {}
     if type(paths) is list:
         for path in paths:
-            args[path] = None
+            args[path] = '_steam' if RimWorldId in path else None
     elif type(paths) is dict:
         args = paths
     for key, value in args.items():
-        mods.update(_load_mods_sub(key, value))
+        mods.update(_generate_mod_dict_sub(key, value))
     return mods
 
 
-def _load_mods_sub(
+def _generate_mod_dict_sub(
     path: str, idPostfix: Optional[Literal["_steam"]] = None
 ) -> dict[str, ModContentPack]:
     mods = {}

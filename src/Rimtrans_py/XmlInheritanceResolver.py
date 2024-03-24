@@ -23,18 +23,26 @@ class XMLInheritance:
 			self.resolvedNodes = {}
 			self.nodesByName = {}
 			self.modLoadOrder = arg
+			self.debug = False
 		else:
 			arg: XMLInheritance
 			self.unresolvedNodes = arg.unresolvedNodes
 			self.resolvedNodes = arg.resolvedNodes
 			self.nodesByName = arg.nodesByName
 			self.modLoadOrder = arg.modLoadOrder
+			self.debug = arg.debug
 
+	def toggle_debug(self) -> None:
+		self.debug = not self.debug
 
 	def try_register_all_from(self, tree: ET._ElementTree, mod: ModContentPack) -> None:
 		for node in list(tree.getroot()):
 			self._try_register(node, mod)
 
+	def start_resolve(self) -> None:
+		self._resolve_parents_and_children()
+		self._resolve_nodes()
+	
 	def _try_register(self, node: ET._Element, mod: ModContentPack) -> None:
 		attr_name = node.get('Name')
 		attr_parentname = node.get('ParentName')
@@ -103,7 +111,8 @@ class XMLInheritance:
 			while parent is not None:
 				p_label = parent.ResolvedXmlNode.find('label')
 				if p_label is not None and p_label.text is not None:
-					print(f'Message: {node.XmlNode.find("defName").text if node.XmlNode.find("defName") is not None else node.XmlNode.tag} label resolved to "{p_label.text}"')
+					if self.debug:
+						print(f'Message: {node.XmlNode.find("defName").text if node.XmlNode.find("defName") is not None else node.XmlNode.tag} label resolved to "{p_label.text}"')
 					label.text = p_label.text
 					break
 				cur = parent
@@ -118,7 +127,8 @@ class XMLInheritance:
 				parent = cur.parent
 				p_description = parent.ResolvedXmlNode.find('description')
 				if p_description is not None and p_description.text is not None:
-					print(f'Message: {node.XmlNode.find("defName").text if node.XmlNode.find("defName") is not None else node.XmlNode.tag} description resolved to {p_description.text}')
+					if self.debug:
+						print(f'Message: {node.XmlNode.find("defName").text if node.XmlNode.find("defName") is not None else node.XmlNode.tag} description resolved to {p_description.text}')
 					description.text = p_description.text
 					break
 				cur = parent

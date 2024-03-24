@@ -10,4 +10,4 @@ while [[ "$#" -gt 0 ]]; do
 			;;
 	esac
 done
-pyinstaller $args -n Rimtrans_py --path=src/Rimtrans_py src/Rimtrans_py/__main__.py 
+pyinstaller $args -n Rimtrans_py src/Rimtrans_py/__main__.py

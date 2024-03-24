@@ -2,7 +2,7 @@ from json import load
 import lxml.etree as ET
 import os, platform, time, argparse, random
 from regex import F
-from FileParser import BFS
+from fileparser import BFS
 from tkinter import NO, filedialog
 from ModLoadFolder import ModLoadFolder
 from dataclasses import dataclass, field

@@ -5,7 +5,7 @@ import lxml.etree as ET
 import regex as re
 import argparse
 from typing import *
-from FileParser import BFS
+from fileparser import BFS
 from utilities import try_add
 
 """

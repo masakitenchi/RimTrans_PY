@@ -1,7 +1,7 @@
 #!/bin/bash
 pip install -r requirements.txt
 
-args="-n Pyscripts -y"
+args="-y --clean"
 while [[ "$#" -gt 0 ]]; do
 	case $1 in
 		-w|--windowed) 
@@ -10,4 +10,4 @@ while [[ "$#" -gt 0 ]]; do
 			;;
 	esac
 done
-pyinstaller src/Rimtrans_py/__main__.py $args
+pyinstaller $args -n Rimtrans_py --path=src/Rimtrans_py src/Rimtrans_py/__main__.py 

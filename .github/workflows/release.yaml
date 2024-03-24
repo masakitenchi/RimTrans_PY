@@ -10,9 +10,16 @@ jobs:
     permissions:
       contents: write
     runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: [3.12]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Build
         shell: bash
         run: |

@@ -171,7 +171,3 @@ class ModLoadFolder:
         Get all supported RimWorld versions
         """
         return list(f for f in self._loadfolders.keys() if f != "default")
-
-
-""" if __name__ == "__main__":
-    unittest.main() """

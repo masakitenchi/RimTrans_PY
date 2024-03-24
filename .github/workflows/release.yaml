@@ -18,9 +18,10 @@ jobs:
         run: |
           ./build.sh
           7z a Release_windows_console.zip -tzip -r ./dist/Rimtrans_py
+          cat build/Rimtrans_py/warn-Rimtrans_py.txt
           ./build.sh --windowed
           7z a Release_windows.zip -tzip -r ./dist/Rimtrans_py
-          ls
+          cat build/Rimtrans_py/warn-Rimtrans_py.txt
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:

@@ -17,9 +17,9 @@ jobs:
         shell: bash
         run: |
           ./build.sh
-          7z a Release_windows_console.zip -tzip -r ./dist/Pyscripts/*
+          7z a Release_windows_console.zip -tzip -r ./dist/Rimtrans_py
           ./build.sh --windowed
-          7z a Release_windows.zip -tzip -r ./dist/Pyscripts/*
+          7z a Release_windows.zip -tzip -r ./dist/Rimtrans_py
           ls
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

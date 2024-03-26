@@ -10,6 +10,7 @@ Extract Rimworld translation files
 - [x] Add an option to concat dirname to output file
 - [x] Preview before export
 - [] i18n support
+- [] more complex def support (QuestScriptDef.ruleString, etc.)
 - [] TODO
 
 # 3rd party Packages

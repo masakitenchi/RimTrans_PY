@@ -48,8 +48,58 @@ class_name_as_key = ["comps"]
 
 tag_translatable = ["label", "labelNoun", "description", "jobString", "labelShort"]
 
-parameter_regex = re.compile(r"\s?{\d}\s?")
-thought_degree_regex = re.compile(r"\s?\(\+(?<degree>\d)\)\s?")
+parameter_regex = re.compile(r"\s?{\d}") 
+"""{0} {1} {2} ..."""
+
+degree_regex = re.compile(r"\s?\(\+(?<degree>\d)\)\s?") 
+"""(+1) (+2) ..."""
+
+def has_sharing_label(listroot: ET._Element) -> bool:
+    labels = set()
+    count = 0
+    for node in listroot.iterchildren("li"):
+        if node.find("./label") is not None:
+            labels.add(node.find("./label").text)
+            count += 1
+    return len(labels) != count
+
+def has_format_string(listroot: ET._Element) -> bool:
+    for node in listroot.iterchildren("li"):
+        if node.find("./label") is not None:
+            if parameter_regex.search(node.find("./label").text) is not None:
+                return True
+    return False
+
+def key_list(listroot: ET._Element) -> list[str]:
+    labels = dict()
+    result = []
+    for node in listroot.iterchildren("li"):
+        if node.find("./label") is not None:
+            label = node.find("./label").text
+            if label in labels:
+                labels[label] += 1
+            else:
+                labels[label] = 0
+            result.append(f'{label}-{labels[label]}')
+        else: result.append("") # Keep the index
+    for res in result:
+        if res != "" and labels[res[0:-2]] == 0:
+            result[result.index(res)] = res[0:-2]
+    return result
+
+def format_list(listroot: ET._Element) -> list[str]:
+    result = []
+    for node in listroot.iterchildren("li"):
+        if node.find("./label") is not None:
+            label = node.find("./label").text
+            if parameter_regex.search(label) is not None:
+                label = parameter_regex.sub("", label)
+            if degree_regex.search(label) is not None:
+                degree = degree_regex.search(label)["degree"]
+                label = degree_regex.sub(" ", label) + f"{degree}"
+            label = label.replace(" ", "_")
+            result.append(label)
+    return result
 
 
 def extract_list(tree: ET._Element) -> list[tuple[str, str]]:
@@ -63,13 +113,10 @@ def extract_list(tree: ET._Element) -> list[tuple[str, str]]:
     for node in tree.iterchildren("li"):
         if node.find("./label") is not None:
             label = node.find("./label").text
-            if parameter_regex.search(label) is not None:
-                label = parameter_regex.sub(
-                    "", label
-                )  # Remove all " {0} " from the label
-            if thought_degree_regex.search(label) is not None:
-                degree = thought_degree_regex.search(label)["degree"]
-                label = thought_degree_regex.sub("", label) + f"_{degree}"
+            if has_sharing_label(tree):
+                label = key_list(tree)[index]
+            elif has_format_string(tree):
+                label = format_list(tree)[index]
             keys.append(
                 (
                     build_key(node, "label", label=label, index=index),

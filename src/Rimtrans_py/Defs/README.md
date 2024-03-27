@@ -111,7 +111,7 @@ There are other circumstances, such as multiple stages sharing the same label, o
 </ThoughtDef>
 ```
 This is why we also need to maintain a variable for their index when parsing, so that when multiple items are sharing an identical label, we can detect and auto-rename it to label-[index], making them  
-**Hypothermia.stages.shivering-1.label & Hypothermia.stages.shivering-2.label** and  
+**Hypothermia.stages.shivering-0.label & Hypothermia.stages.shivering-1.label** and  
 **DeadMansApparel.stages.tainted.label & DeadMansApparel.stages.tainted-1.label** respectively.
 
 

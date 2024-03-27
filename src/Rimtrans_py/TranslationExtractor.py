@@ -139,6 +139,8 @@ def build_key(
     key = node.find(f"./{finalTag}").text if label is None else label
     if len(key.split(" ")) > 1:  # Contains whitespace
         key = key.replace(" ", "_")
+    if '\'' in key:
+        key = key.replace("'", "")
     parent = node
     key_str = ".".join([key, finalTag])
     while True:

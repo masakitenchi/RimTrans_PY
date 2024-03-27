@@ -218,7 +218,7 @@ def extract_tree(tree: ET._ElementTree) -> dict[str, dict[str, str]]:
     Given a xml tree, returns a dict of {defType : {key: value}}
     """
     root = tree.getroot()
-    keys = {}
+    keys: dict[str, dict[str, str]] = {}
     if root.tag == 'Defs':
         func = extract_single_def
         nodeiter = root.iterchildren()
@@ -228,7 +228,15 @@ def extract_tree(tree: ET._ElementTree) -> dict[str, dict[str, str]]:
     else:
         return {}
     for node in nodeiter:
-        keys.update(func(node))
+        result = func(node)
+        for res in result:
+            if res not in keys:
+                keys[res] = {}
+            for key, value in result[res].items():
+                if key in keys[res]:
+                    keys[res][key] += value
+                else:
+                    keys[res][key] = value
     return keys
 
 

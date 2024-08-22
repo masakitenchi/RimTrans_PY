@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.testing.unittestEnabled": true,
+		"python.createEnvironment.contentButton": "show"
+	}
+}

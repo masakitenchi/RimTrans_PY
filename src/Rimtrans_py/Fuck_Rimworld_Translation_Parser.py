@@ -34,6 +34,8 @@ def Fuck_Rimworld_Translation_Parser(rootdir: str):
 
 if __name__ == '__main__':
 	if os.path.isdir(sys.argv[1]):
+		print(f'parsing {sys.argv[1]}')
 		Fuck_Rimworld_Translation_Parser(sys.argv[1])
 	else:
-		Fuck_Rimworld_Translation_Parser('.')
+		print(f'parsing {__file__}')
+		Fuck_Rimworld_Translation_Parser(__file__)

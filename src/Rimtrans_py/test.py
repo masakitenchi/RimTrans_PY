@@ -75,14 +75,14 @@ class Test(unittest.TestCase):
         print(
             ModLoadFolder(
                 "D:\\SteamLibrary\\steamapps\\common\\RimWorld\\Data\\Core"
-            )._loadfolders
+            )._loadfolders_by_ver
         )
 
     def test_mod_loadfolder(self) -> None:
         print(
             ModLoadFolder(
                 "D:\\SteamLibrary\\steamapps\\common\\RimWorld\\Mods\\HSK_CN"
-            )._loadfolders
+            )._loadfolders_by_ver
         )
 
     @unittest.skip("no reason")

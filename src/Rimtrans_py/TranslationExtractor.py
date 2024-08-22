@@ -222,15 +222,20 @@ def extract_tree(tree: ET._ElementTree) -> dict[str, dict[str, str]]:
     root = tree.getroot()
     keys: dict[str, dict[str, str]] = {}
     if root.tag == 'Defs':
-        func = extract_single_def
-        nodeiter = root.iterchildren()
+        for node in root.iterchildren():
+            result = extract_single_def(node)
+            for res in result:
+                if res not in keys:
+                    keys[res] = {}
+                for key, value in result[res].items():
+                    if key in keys[res]:
+                        keys[res][key] += value
+                    else:
+                        keys[res][key] = value
     elif root.tag == 'Patch':
-        func = extract_single_patch
-        nodeiter = root.xpath(patch_xpath) + root.xpath(anomaly_xpath)
-    else:
-        return {}
-    for node in nodeiter:
-        result = func(node)
+        #func = extract_single_patch
+        #nodeiter = root.xpath(patch_xpath) + root.xpath(anomaly_xpath)
+        result = extract_single_patch(root)
         for res in result:
             if res not in keys:
                 keys[res] = {}
@@ -239,6 +244,8 @@ def extract_tree(tree: ET._ElementTree) -> dict[str, dict[str, str]]:
                     keys[res][key] += value
                 else:
                     keys[res][key] = value
+    else:
+        return {}
     return keys
 
 
@@ -246,9 +253,9 @@ def extract(
     list_paths: list[str], target: set[Literal["Def", "Patch"]]
 ) -> dict[str, dict[str, str]]:
     """
-    总提取函数
+    ### 总提取函数\n
     :param list_paths: 所有文件的绝对路径列表
-    :param target: 提取目标，Def或Patch
+    :param target: 提取目标，Def或Patch\n
     :return: dict[defType: str, dict[key: str, value: str]] Similar to DefDataBase<T>, where T is the outer key in this dict
     """
     pairs: dict[str, dict[str, str]] = dict()
@@ -271,7 +278,7 @@ def extract(
             if node is not None:
                 print(f"Error when parsing {file}, {node.tag} message: {e}")
             else: """
-            print(f"Error when parsing {file}, message: {e}")
+            print(f"Error when parsing {file}, message: {e}.")
             continue
     return pairs
 
